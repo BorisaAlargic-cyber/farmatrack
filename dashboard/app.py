@@ -11,6 +11,9 @@ if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
 import streamlit as st
+from database.connection import init_db
+
+init_db()
 
 st.set_page_config(
     page_title="FarmaTrack",
