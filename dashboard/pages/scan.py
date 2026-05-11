@@ -45,51 +45,96 @@ def render():
     st.title("📷 Scan Ear Tag")
 
     tab_camera, tab_text, tab_img, tab_logs = st.tabs(
-        ["📸 Live Camera", "✏️ Manual Entry", "🖼 Image Upload", "📋 Scan Logs"]
+        ["📸 Camera", "✏️ Manual Entry", "🖼 Image Upload", "📋 Scan Logs"]
     )
 
     # ── Live camera ────────────────────────────────────────
     with tab_camera:
-        st.info("Point your camera at the ear tag and take a photo.")
         photo = st.camera_input("Take a photo of the ear tag")
+
         if photo is not None:
-            # Cache result so button clicks don't retrigger the slow OCR scan
+            # Cache OCR result per photo so button clicks don't re-trigger scan
             photo_key = hash(photo.getvalue())
             if st.session_state.get("_cam_key") != photo_key:
-                with st.spinner("Scanning..."):
+                with st.spinner("Reading tag..."):
                     try:
-                        res = api.scan_image(photo.getvalue(), "camera.jpg")
+                        from scanner.ocr import ocr_image, HAS_TESSERACT
+                        import tempfile, os
+                        suffix = ".jpg"
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                            tmp.write(photo.getvalue())
+                            tmp_path = tmp.name
+                        try:
+                            raw_text = ocr_image(tmp_path) if HAS_TESSERACT else ""
+                        finally:
+                            os.unlink(tmp_path)
+
+                        from services.scan_service import parse_tag
+                        parsed, conf = parse_tag(raw_text or "")
                         st.session_state["_cam_key"] = photo_key
-                        st.session_state["_cam_result"] = res
-                    except Exception as e:
-                        st.session_state["_cam_result"] = None
-                        st.error(str(e))
-            res = st.session_state.get("_cam_result")
-            if res:
-                _show_result(res, key_suffix="cam")
+                        st.session_state["_cam_ocr"] = parsed or ""
+                    except Exception:
+                        st.session_state["_cam_key"] = photo_key
+                        st.session_state["_cam_ocr"] = ""
+
+            ocr_guess = st.session_state.get("_cam_ocr", "")
+
+            st.info(
+                "OCR pre-fills the field below — check the photo and correct the number if needed, "
+                "then click **Look Up**."
+            )
+            tag_input = st.text_input(
+                "Tag number",
+                value=ocr_guess,
+                placeholder="e.g. 2419",
+                key=f"cam_tag_{photo_key}",
+            )
+            if st.button("🔍 Look Up", type="primary", key="cam_lookup"):
+                if not tag_input.strip():
+                    st.warning("Enter the tag number from the photo.")
+                else:
+                    _lookup_and_show(tag_input.strip(), key_suffix="cam")
 
     # ── Manual entry ───────────────────────────────────────
     with tab_text:
-        raw = st.text_input("Enter ear tag number", placeholder="9142 or SOW-001")
-        if st.button("🔍 Look up", key="btn_text"):
+        raw = st.text_input("Enter tag number", placeholder="2419 or SOW-001")
+        if st.button("🔍 Look Up", key="btn_text"):
             if not raw.strip():
                 st.warning("Please enter a tag number.")
             else:
-                try:
-                    res = api.scan_text(raw.strip())
-                    _show_result(res, key_suffix="txt")
-                except Exception as e:
-                    st.error(str(e))
+                _lookup_and_show(raw.strip(), key_suffix="txt")
 
     # ── Image upload ───────────────────────────────────────
     with tab_img:
         uploaded = st.file_uploader("Upload ear-tag photo", type=["png", "jpg", "jpeg"])
-        if uploaded and st.button("📸 Scan Image", key="btn_img"):
-            try:
-                res = api.scan_image(uploaded.getvalue(), uploaded.name)
-                _show_result(res, key_suffix="img")
-            except Exception as e:
-                st.error(str(e))
+        if uploaded is not None:
+            photo_key_u = hash(uploaded.getvalue())
+            if st.session_state.get("_img_key") != photo_key_u:
+                with st.spinner("Reading tag..."):
+                    try:
+                        res = api.scan_image(uploaded.getvalue(), uploaded.name)
+                        st.session_state["_img_key"] = photo_key_u
+                        st.session_state["_img_result"] = res
+                    except Exception as e:
+                        st.session_state["_img_result"] = None
+                        st.error(str(e))
+
+            res = st.session_state.get("_img_result")
+            if res:
+                ocr_guess_u = res.get("parsed_tag") or ""
+                tag_input_u = st.text_input(
+                    "Tag number (correct if needed)",
+                    value=ocr_guess_u,
+                    placeholder="e.g. 2419",
+                    key=f"img_tag_{photo_key_u}",
+                )
+                if st.button("🔍 Look Up", type="primary", key="img_lookup"):
+                    if tag_input_u.strip():
+                        _lookup_and_show(tag_input_u.strip(), key_suffix="img")
+
+                if res.get("raw_text"):
+                    with st.expander("Raw OCR output"):
+                        st.code(res["raw_text"])
 
     # ── Scan logs ──────────────────────────────────────────
     with tab_logs:
@@ -104,23 +149,20 @@ def render():
             st.error(str(e))
 
 
-def _show_result(res: dict, key_suffix: str = ""):
+def _lookup_and_show(tag: str, key_suffix: str = ""):
+    try:
+        res = api.scan_text(tag)
+    except Exception as e:
+        st.error(str(e))
+        return
+
     if res.get("pig_id"):
         st.success(res["message"])
         try:
             pig_card(api.get_pig(res["pig_id"]))
         except Exception:
             pass
-
-    elif res.get("parsed_tag"):
-        tag = res["parsed_tag"]
-        st.warning(f"Tag **`{tag}`** is not registered in the system yet.")
+    else:
+        st.warning(f"Tag **`{tag}`** is not registered yet.")
         if st.button("➕ Register this pig", type="primary", key=f"reg_{key_suffix}_{tag}"):
             _register_dialog(tag)
-
-    else:
-        st.error(res["message"])
-
-    if res.get("raw_text") and not res.get("pig_id"):
-        with st.expander("Raw OCR output (debug)"):
-            st.code(res["raw_text"])
