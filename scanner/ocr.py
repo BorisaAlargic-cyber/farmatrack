@@ -22,7 +22,7 @@ from config import get_settings
 
 _GEMINI_URL = (
     "https://generativelanguage.googleapis.com/v1beta/models/"
-    "gemini-1.5-flash:generateContent?key={key}"
+    "gemini-flash-latest:generateContent?key={key}"
 )
 
 _PROMPT = (
