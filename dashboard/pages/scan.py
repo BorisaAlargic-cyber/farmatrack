@@ -58,14 +58,14 @@ def render():
             if st.session_state.get("_cam_key") != photo_key:
                 with st.spinner("Reading tag..."):
                     try:
-                        from scanner.ocr import ocr_image, HAS_TESSERACT
+                        from scanner.ocr import ocr_image
                         import tempfile, os
                         suffix = ".jpg"
                         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
                             tmp.write(photo.getvalue())
                             tmp_path = tmp.name
                         try:
-                            raw_text = ocr_image(tmp_path) if HAS_TESSERACT else ""
+                            raw_text = ocr_image(tmp_path) or ""
                         finally:
                             os.unlink(tmp_path)
 

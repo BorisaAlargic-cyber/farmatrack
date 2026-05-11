@@ -10,11 +10,14 @@ if _PROJECT_ROOT not in sys.path:
 
 import streamlit as st
 
-# Pull DATABASE_URL directly from st.secrets so Streamlit Cloud secrets
-# always win — never rely on os.environ which may hold a stale value from
-# a previous deployment.
+# Inject all string secrets into os.environ so pydantic-settings picks them up
+# (e.g. GOOGLE_VISION_API_KEY, TESSERACT_CMD).
+# DATABASE_URL is also passed directly to init_db() to bypass any stale env value.
 _db_url = None
 try:
+    for _k, _v in st.secrets.items():
+        if isinstance(_v, str):
+            os.environ[_k] = _v
     _db_url = st.secrets.get("DATABASE_URL")
 except Exception:
     pass

@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./farmatrack.db"
     API_BASE_URL: str = "http://localhost:8000"
     TESSERACT_CMD: str = "/usr/bin/tesseract"
+    GOOGLE_VISION_API_KEY: str = ""
     DEBUG: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
