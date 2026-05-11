@@ -99,9 +99,9 @@ TESSERACT_CMD = "/usr/bin/tesseract"
 ```
 
 ### How secrets work
-`dashboard/app.py` explicitly copies `st.secrets` into `os.environ` BEFORE importing
-any database modules. This ensures pydantic-settings picks up DATABASE_URL correctly.
-The `get_settings()` lru_cache is cleared first to force a fresh read.
+`dashboard/app.py` reads `DATABASE_URL` directly from `st.secrets` and passes it to
+`init_db(database_url=...)`. This bypasses `os.environ` entirely, so a stale env var
+from a previous deploy can never override the correct Neon URL.
 
 ### Connection config
 - SQLite: uses `check_same_thread=False`
@@ -117,6 +117,7 @@ Streamlit Cloud auto-redeploys on push to `main`.
 ### Tags so far
 - `v0.1.0` — initial release (all features, 45 tests)
 - `v0.2.0` — Streamlit Cloud ready (direct DB client, PostgreSQL support)
+- `v0.3.0` — Neon PostgreSQL confirmed working on Streamlit Cloud
 
 ### Commit after every change
 ```bash
@@ -138,22 +139,8 @@ git tag -a v0.X.0 -m "description" && git push origin v0.X.0
 5. Database seed script — 62 pigs, 8 pens, health/farrowing/scan demo data
 6. 45 tests — all passing
 7. GitHub repo — auto-deploys to Streamlit Cloud on push
-8. Neon PostgreSQL — persistent free database connected to Streamlit Cloud
+8. Neon PostgreSQL — persistent free database, confirmed working on Streamlit Cloud
 9. DBeaver connection — SQLite file at `farmatrack.db` for local inspection
-
-### Temporary debug code to remove
-`dashboard/app.py` has a sidebar debug line showing the masked DATABASE_URL.
-Remove after confirming Streamlit Cloud deployment works:
-```python
-# Remove this block from dashboard/app.py once deployment is confirmed:
-try:
-    import re
-    _raw = st.secrets.get("DATABASE_URL") or os.environ.get("DATABASE_URL", "NOT SET")
-    _masked = re.sub(r"://([^:]+):([^@]+)@", r"://\1:****@", _raw)
-    st.sidebar.caption(f"🔌 DB: `{_masked}`")
-except Exception:
-    pass
-```
 
 ---
 
