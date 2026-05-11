@@ -172,6 +172,12 @@ def scan_text(raw_text: str, source: str = "ear_tag") -> dict:
 
 
 def scan_image(file_bytes: bytes, filename: str) -> dict:
+    from scanner.ocr import HAS_TESSERACT
+    if not HAS_TESSERACT:
+        return ScanResult(
+            message="Tesseract OCR is not installed on this server. Use Manual Entry to type the tag number."
+        ).model_dump(mode="json")
+
     suffix = os.path.splitext(filename or ".jpg")[1] or ".jpg"
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         tmp.write(file_bytes)
@@ -179,7 +185,9 @@ def scan_image(file_bytes: bytes, filename: str) -> dict:
     try:
         raw_text = ocr_image(tmp_path)
         if not raw_text:
-            return ScanResult(message="OCR could not extract text from the image.").model_dump(mode="json")
+            return ScanResult(
+                message="Could not read text from the photo. Try getting closer to the tag and ensuring good lighting."
+            ).model_dump(mode="json")
         return scan_text(raw_text, source="ear_tag")
     finally:
         os.unlink(tmp_path)

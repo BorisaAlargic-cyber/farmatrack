@@ -12,21 +12,15 @@ except ImportError:
 
 from config import get_settings
 
-# Characters that appear on ear tags (no lowercase, no punctuation)
-_WHITELIST = "-c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789- --oem 3"
-
-# PSM 11 (sparse text) is best for finding a small tag in a complex photo.
-# PSM 6 (block) and PSM 3 (auto) are fallbacks.
-_PSM_MODES = [11, 6, 3]
-
-# Pig tags can be at any angle — try all four cardinal rotations.
-_ROTATIONS = [0, 90, 180, 270]
+# PSM 11 = sparse text: finds text anywhere in a complex photo background.
+# oem 1 = LSTM only (faster than oem 3, handles rotated/handwritten text well).
+# Character whitelist keeps Tesseract focused on tag characters only.
+_CONFIG = "--psm 11 --oem 1 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-"
 
 
 def _preprocess(img: "Image.Image") -> "Image.Image":
-    """High-contrast grayscale optimised for yellow plastic tags with dark ink."""
+    """High-contrast grayscale for yellow plastic tags with dark ink."""
     img = img.convert("L")
-    # Stretch contrast so dark ink on yellow background becomes near-black on white
     img = ImageOps.autocontrast(img, cutoff=2)
     img = ImageEnhance.Contrast(img).enhance(3.0)
     img = img.filter(ImageFilter.SHARPEN)
@@ -37,8 +31,7 @@ def _preprocess(img: "Image.Image") -> "Image.Image":
 def ocr_image(image_path: Union[str, Path]) -> Optional[str]:
     """Run OCR on an ear-tag image and return raw text.
 
-    Tries every combination of 4 rotations × 3 PSM modes × normal/inverted
-    so a tag photographed upside-down or sideways is still recognised.
+    Tries 5 passes: 4 cardinal rotations + inverted original.
     Returns None if Tesseract is not installed or nothing is extracted.
     """
     if not HAS_TESSERACT:
@@ -50,8 +43,7 @@ def ocr_image(image_path: Union[str, Path]) -> Optional[str]:
     try:
         img = Image.open(image_path)
 
-        # Resize so the long side is ≤1200px — large enough for Tesseract,
-        # small enough to process quickly.
+        # Keep long side ≤ 1200 px — enough for Tesseract, fast to process.
         max_dim = max(img.width, img.height)
         if max_dim > 1200:
             scale = 1200 / max_dim
@@ -60,22 +52,25 @@ def ocr_image(image_path: Union[str, Path]) -> Optional[str]:
                 Image.LANCZOS,
             )
 
+        base = _preprocess(img)
+
+        # 5 attempts: 0°/90°/180°/270° + colour-inverted original
+        # (inverted catches white-on-yellow or white-on-blue tags)
+        variants = [
+            base,
+            base.rotate(90, expand=True),
+            base.rotate(180, expand=True),
+            base.rotate(270, expand=True),
+            ImageOps.invert(base),
+        ]
+
         collected: list[str] = []
         seen: set[str] = set()
-
-        for angle in _ROTATIONS:
-            rotated = img.rotate(angle, expand=True)
-            processed = _preprocess(rotated)
-            inverted = ImageOps.invert(processed)
-
-            for variant in (processed, inverted):
-                for psm in _PSM_MODES:
-                    text = pytesseract.image_to_string(
-                        variant, config=f"--psm {psm} {_WHITELIST}"
-                    ).strip()
-                    if text and text not in seen:
-                        seen.add(text)
-                        collected.append(text)
+        for v in variants:
+            text = pytesseract.image_to_string(v, config=_CONFIG).strip()
+            if text and text not in seen:
+                seen.add(text)
+                collected.append(text)
 
         return "\n".join(collected) if collected else None
 
