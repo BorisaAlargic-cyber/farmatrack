@@ -26,9 +26,10 @@ _GEMINI_URL = (
 )
 
 _PROMPT = (
-    "This is a photo of a yellow plastic pig ear tag. "
-    "Read the large number printed on it (usually 4-6 digits). "
-    "Return ONLY that number — no explanation, no other text."
+    "Look at this image and read the number on it. "
+    "It may be a pig ear tag, a piece of paper, or any object with a number written or printed on it. "
+    "Return ONLY the number you see — no explanation, no other text. "
+    "If there are multiple numbers, return the largest or most prominent one."
 )
 
 
