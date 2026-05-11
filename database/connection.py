@@ -2,6 +2,7 @@
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.pool import NullPool, StaticPool
 from typing import Generator
 
 from config import get_settings
@@ -9,11 +10,23 @@ from config import get_settings
 settings = get_settings()
 
 _is_sqlite = "sqlite" in settings.DATABASE_URL
-engine = create_engine(
-    settings.DATABASE_URL,
-    connect_args={"check_same_thread": False} if _is_sqlite else {"sslmode": "require"},
-    echo=settings.DEBUG,
-)
+
+if _is_sqlite:
+    engine = create_engine(
+        settings.DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        echo=settings.DEBUG,
+    )
+else:
+    # NullPool: let pgBouncer (Transaction Pooler) handle connection pooling.
+    # pool_pre_ping: discard stale connections silently.
+    engine = create_engine(
+        settings.DATABASE_URL,
+        connect_args={"sslmode": "require"},
+        poolclass=NullPool,
+        pool_pre_ping=True,
+        echo=settings.DEBUG,
+    )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
