@@ -75,11 +75,13 @@ def process_scan(db: Session, req: ScanRequest) -> ScanResult:
             pig_id=pig.id,
             ear_tag=pig.ear_tag,
             message=f"Matched pig: {pig.ear_tag} ({pig.category.value})",
+            raw_text=req.raw_text,
         )
     return ScanResult(
         parsed_tag=parsed_tag,
         confidence=confidence,
         message="No matching pig found." if parsed_tag else "Could not parse tag from scan.",
+        raw_text=req.raw_text,
     )
 
 

@@ -19,6 +19,7 @@ class ScanResult(BaseModel):
     pig_id: Optional[int] = None
     ear_tag: Optional[str] = None
     message: str
+    raw_text: Optional[str] = None
 
 
 class ScanLogRead(BaseModel):

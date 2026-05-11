@@ -60,12 +60,19 @@ def render():
 
 
 def _show_result(res: dict):
-    st.markdown(f"**Message:** {res['message']}")
-    if res.get("parsed_tag"):
-        st.markdown(f"**Parsed tag:** `{res['parsed_tag']}` — confidence {res.get('confidence', '?')}")
     if res.get("pig_id"):
+        st.success(res["message"])
         try:
             pig = api.get_pig(res["pig_id"])
             pig_card(pig)
         except Exception:
             pass
+    elif res.get("parsed_tag"):
+        st.warning(res["message"])
+        st.markdown(f"**Parsed tag:** `{res['parsed_tag']}` (confidence {res.get('confidence', '?')})")
+    else:
+        st.error(res["message"])
+
+    if res.get("raw_text") and not res.get("pig_id"):
+        with st.expander("Raw OCR text (debug)"):
+            st.code(res.get("raw_text", ""))
