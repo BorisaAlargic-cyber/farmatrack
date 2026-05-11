@@ -1,6 +1,6 @@
 """OCR for ear-tag images.
 
-Primary:  Google Cloud Vision API (accurate, handles any font/angle)
+Primary:  Google Gemini Vision API (free, just a Google account, very accurate)
 Fallback: Tesseract (free, but unreliable for bold marker fonts)
 """
 
@@ -20,38 +20,60 @@ except ImportError:
 
 from config import get_settings
 
+_GEMINI_URL = (
+    "https://generativelanguage.googleapis.com/v1beta/models/"
+    "gemini-1.5-flash:generateContent?key={key}"
+)
 
-# ── Google Cloud Vision ────────────────────────────────────────────────────
+_PROMPT = (
+    "This is a photo of a yellow plastic pig ear tag. "
+    "Read the large number printed on it (usually 4-6 digits). "
+    "Return ONLY that number — no explanation, no other text."
+)
 
-def _ocr_google_vision(image_path: Union[str, Path], api_key: str) -> Optional[str]:
-    """Call Google Cloud Vision TEXT_DETECTION and return the full text block."""
+
+# ── Gemini Vision ──────────────────────────────────────────────────────────
+
+def _ocr_gemini(image_path: Union[str, Path], api_key: str) -> Optional[str]:
+    """Call Gemini 1.5 Flash vision and extract the tag number."""
     with open(image_path, "rb") as f:
         image_b64 = base64.b64encode(f.read()).decode("utf-8")
 
+    # Detect mime type from extension
+    ext = Path(image_path).suffix.lower()
+    mime = {"jpg": "image/jpeg", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+            ".png": "image/png"}.get(ext, "image/jpeg")
+
+    payload = {
+        "contents": [{
+            "parts": [
+                {"text": _PROMPT},
+                {"inline_data": {"mime_type": mime, "data": image_b64}},
+            ]
+        }]
+    }
+
     try:
         resp = _requests.post(
-            f"https://vision.googleapis.com/v1/images:annotate?key={api_key}",
-            json={
-                "requests": [{
-                    "image": {"content": image_b64},
-                    "features": [{"type": "TEXT_DETECTION"}],
-                }]
-            },
-            timeout=15,
+            _GEMINI_URL.format(key=api_key),
+            json=payload,
+            timeout=20,
         )
     except _requests.RequestException as e:
-        print(f"Vision API request failed: {e}")
+        print(f"Gemini API request failed: {e}")
         return None
 
     if resp.status_code != 200:
-        print(f"Vision API error {resp.status_code}: {resp.text[:200]}")
+        print(f"Gemini API error {resp.status_code}: {resp.text[:200]}")
         return None
 
-    data = resp.json()
-    annotations = data.get("responses", [{}])[0].get("textAnnotations", [])
-    if annotations:
-        return annotations[0]["description"].strip()
-    return None
+    try:
+        text = (
+            resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+        )
+        return text if text else None
+    except (KeyError, IndexError):
+        return None
 
 
 # ── Tesseract fallback ─────────────────────────────────────────────────────
@@ -81,7 +103,7 @@ def _crop_yellow_tag(img: "Image.Image") -> Optional["Image.Image"]:
 
 
 def _ocr_tesseract(image_path: Union[str, Path]) -> Optional[str]:
-    """Tesseract fallback — tries 5 passes (4 rotations + inverted)."""
+    """Tesseract fallback — 5 passes (4 rotations + inverted)."""
     settings = get_settings()
     pytesseract.pytesseract.tesseract_cmd = settings.TESSERACT_CMD
 
@@ -97,8 +119,7 @@ def _ocr_tesseract(image_path: Union[str, Path]) -> Optional[str]:
         i = i.convert("L")
         i = ImageOps.autocontrast(i, cutoff=2)
         i = ImageEnhance.Contrast(i).enhance(3.0)
-        i = i.filter(ImageFilter.SHARPEN).filter(ImageFilter.SHARPEN)
-        return i
+        return i.filter(ImageFilter.SHARPEN).filter(ImageFilter.SHARPEN)
 
     base = preprocess(work)
     variants = [
@@ -108,10 +129,9 @@ def _ocr_tesseract(image_path: Union[str, Path]) -> Optional[str]:
         base.rotate(270, expand=True),
         ImageOps.invert(base),
     ]
-    config = "--psm 11 --oem 1"
     collected, seen = [], set()
     for v in variants:
-        text = pytesseract.image_to_string(v, config=config).strip()
+        text = pytesseract.image_to_string(v, config="--psm 11 --oem 1").strip()
         if text and text not in seen:
             seen.add(text)
             collected.append(text)
@@ -123,15 +143,14 @@ def _ocr_tesseract(image_path: Union[str, Path]) -> Optional[str]:
 def ocr_image(image_path: Union[str, Path]) -> Optional[str]:
     """Extract text from an ear-tag photo.
 
-    Uses Google Cloud Vision if GOOGLE_VISION_API_KEY is configured,
+    Uses Gemini Vision if GOOGLE_VISION_API_KEY is set in settings,
     otherwise falls back to Tesseract.
-    Returns None if nothing is available or nothing is detected.
     """
     settings = get_settings()
-    api_key = getattr(settings, "GOOGLE_VISION_API_KEY", None)
+    api_key = settings.GOOGLE_VISION_API_KEY
 
     if api_key:
-        result = _ocr_google_vision(image_path, api_key)
+        result = _ocr_gemini(image_path, api_key)
         if result:
             return result
 
