@@ -1,18 +1,28 @@
 """FarmaTrack — Streamlit dashboard entry point."""
 
 import sys
+import os
 from pathlib import Path
 
-# Ensure the project root (farmatrack/) is on sys.path so that
-# `from dashboard.pages...`, `from config...`, etc. resolve correctly
-# regardless of the working directory.
 _PROJECT_ROOT = str(Path(__file__).resolve().parent.parent)
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
 import streamlit as st
-from database.connection import init_db
 
+# Inject Streamlit Cloud secrets into environment variables BEFORE
+# any database modules are imported, so pydantic-settings picks them up.
+try:
+    for _k, _v in st.secrets.items():
+        if isinstance(_v, str) and _k not in os.environ:
+            os.environ[_k] = _v
+except Exception:
+    pass
+
+from config import get_settings
+get_settings.cache_clear()
+
+from database.connection import init_db
 init_db()
 
 st.set_page_config(

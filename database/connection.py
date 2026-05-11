@@ -5,7 +5,6 @@ from sqlalchemy.orm import sessionmaker, Session
 from typing import Generator
 
 from config import get_settings
-from database.models import Base
 
 settings = get_settings()
 
@@ -21,6 +20,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def init_db() -> None:
     """Create all tables if they don't exist."""
+    from database.models import Base
     Base.metadata.create_all(bind=engine)
 
 
