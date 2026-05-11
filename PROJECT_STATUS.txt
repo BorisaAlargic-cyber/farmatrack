@@ -1,0 +1,219 @@
+FarmaTrack — Project Status Report
+Generated: 2026-05-11
+====================================================================================================
+
+OVERVIEW
+--------
+FarmaTrack is a pig farm management system built in Python. It consists of:
+  - A FastAPI REST backend (main.py + routers/ + services/)
+  - A Streamlit web dashboard (dashboard/)
+  - A SQLite database (farmatrack.db) managed by SQLAlchemy ORM
+  - An OCR scanning module using Tesseract (scanner/)
+  - A full test suite (tests/) — 45 tests, all passing
+
+The project is intended to run at "Veliki Jarak" farm and is at version 0.1.0.
+
+
+TECH STACK
+----------
+  - Python 3.9 (required — project was built and tested on 3.9)
+  - FastAPI >= 0.111       — REST API framework
+  - Uvicorn               — ASGI server
+  - SQLAlchemy >= 2.0     — ORM / database layer
+  - Pydantic >= 2.0       — schema validation
+  - pydantic-settings     — config from .env
+  - Streamlit >= 1.35     — web dashboard
+  - pytesseract + Pillow  — OCR for ear-tag image scanning
+  - python-multipart      — file upload support
+  - pandas >= 2.1         — used in dashboard charts/tables
+  - requests              — dashboard → API HTTP calls
+  - pytest + httpx        — test framework
+
+
+====================================================================================================
+WHAT HAS BEEN BUILT
+====================================================================================================
+
+1. DATABASE LAYER  (database/)
+------------------------------
+Models (database/models.py):
+  - Pen          — livestock pen (id, name, capacity, pen_type, created_at)
+  - Pig          — individual animal (id, ear_tag [unique], category, breed, date_of_birth,
+                   weight_kg, pen_id [FK], is_active, notes, created_at, updated_at)
+  - HealthRecord — veterinary record (id, pig_id [FK], status, diagnosis, treatment,
+                   vet_name, record_date, next_checkup, notes, created_at)
+  - Farrowing    — birth event (id, sow_id [FK], farrowing_date, live_born, stillborn,
+                   mummified, weaned_count, wean_date, notes, created_at)
+                   Has a computed property: total_born = live_born + stillborn + mummified
+  - ScanLog      — every scan attempt (id, pig_id [FK nullable], raw_text, parsed_tag,
+                   source, confidence, scanned_at)
+
+Enums (database/enums.py):
+  - PigCategory: piglet, finisher, gilt, sow
+  - HealthStatus: healthy, sick, treated, quarantined
+  - ScanSource: ear_tag, manual
+
+Connection (database/connection.py):
+  - SQLite by default (configurable via DATABASE_URL in .env)
+  - init_db() creates tables on startup; get_db() is the FastAPI dependency
+
+Seed script (database/seed.py):
+  - Populates demo data: 8 pens, 8 sows, 4 gilts, 20 finishers, 30 piglets
+  - Adds 15 health records, 5 farrowings, 20 scan logs
+  - Safe to re-run — skips if data already exists
+  - Run with: python database/seed.py
+
+
+2. CONFIGURATION  (config.py)
+------------------------------
+  - Reads from .env file via pydantic-settings
+  - Settings: APP_NAME, DATABASE_URL, API_BASE_URL, TESSERACT_CMD, DEBUG
+  - .env.example is provided as a template
+  - NOTE: Minor deprecation warning in Pydantic v2 (uses old class-based Config style
+    instead of model_config = ConfigDict(...)) — does not affect functionality
+
+
+3. REST API BACKEND  (routers/ + services/)
+--------------------------------------------
+Pigs  (GET/POST /pigs/, GET/PATCH/DELETE /pigs/{id})
+  - List with filters: category, pen_id, active_only, skip, limit
+  - Create with ear_tag uniqueness check (409 on duplicate)
+  - Update any field via PATCH
+  - DELETE is a soft-delete (sets is_active=False, does not remove row)
+
+Health Records  (GET/POST /health/, GET/PATCH/DELETE /health/{id})
+  - List with filters: pig_id, status
+  - Results ordered by record_date descending
+  - Validates pig exists before creating
+  - Hard delete supported
+
+Farrowings  (GET/POST /farrowings/, GET/PATCH /farrowings/{id})
+  - List with filter: sow_id; ordered by farrowing_date descending
+  - Validates sow exists and is category sow or gilt (rejects finishers etc.)
+  - PATCH used for weaning updates (weaned_count, wean_date)
+  - No delete endpoint (records are permanent)
+
+Pens  (GET/POST /pens/, GET/PATCH /pens/{id})
+  - List and get return PenOccupancy schema (includes live current_count)
+  - Duplicate pen name rejected (409)
+  - No delete endpoint
+
+Scan  (POST /scan/, POST /scan/image, GET /scan/logs)
+  - POST /scan/       — manual text input, parses tag and looks up pig
+  - POST /scan/image  — upload image file, runs OCR, then same lookup
+  - GET  /scan/logs   — recent scan history, ordered by time descending
+
+Dashboard  (GET /dashboard/summary)
+  - Aggregated stats: total active pigs, breakdown by category,
+    sick/quarantined count, total farrowings, average live born
+  - Pen utilisation list (current vs capacity, percentage)
+  - Health status distribution
+
+
+4. OCR / SCAN ENGINE  (scanner/ocr.py, services/scan_service.py)
+-----------------------------------------------------------------
+  - Tesseract-based image OCR (scanner/ocr.py)
+      - Converts to grayscale, applies sharpen filter before OCR
+      - Uses Tesseract PSM 7 (single line mode) for ear tags
+      - Gracefully disabled if pytesseract/Pillow not installed
+  - Tag parser (services/scan_service.py — parse_tag function)
+      - Expected format: 2–4 uppercase letters + dash + 3+ digits (e.g. SOW-001, FIN-012)
+      - Two-pass approach:
+          Pass 1: clean input (strip, uppercase, remove non-alphanumeric) → regex match → confidence 0.90
+          Pass 2: OCR correction only on numeric portion (O→0, I→1, l→1) → retry regex → confidence 0.85
+          Fallback: return raw cleaned text with confidence 0.40
+      - SOW prefix is preserved correctly (O→0 only happens after the dash)
+
+
+5. STREAMLIT DASHBOARD  (dashboard/)
+--------------------------------------
+Entry point: dashboard/app.py — run with: streamlit run dashboard/app.py
+
+Pages (dashboard/pages/):
+  - dashboard.py   — KPI metrics row, herd-by-category bar chart,
+                     health-distribution bar chart, pen utilisation table
+  - herd.py        — Browse herd with filters (category, pen, active),
+                     view pig detail card, edit pig, add new pig
+  - scan.py        — Manual text entry scan, image upload scan, scan log table
+  - pens.py        — List pens with occupancy, edit pen, add new pen
+  - health.py      — Health records table (filter by pig), edit/delete record, add new record
+  - farrowings.py  — Farrowing records table (filter by sow), update weaning, add farrowing
+
+Reusable components (dashboard/components/):
+  - pig_card.py     — bordered pig info card (ear_tag, category, breed, weight, status)
+  - status_badge.py — colour-coded health status icon (green/red/yellow/orange)
+
+API client (dashboard/api_client.py):
+  - All pages communicate through this module (no direct DB access from dashboard)
+  - Calls the FastAPI backend via HTTP (requests library)
+  - Raises RuntimeError with detail message on HTTP 4xx/5xx
+
+
+6. TEST SUITE  (tests/)
+------------------------
+ALL 45 TESTS PASS (verified 2026-05-11 using Python 3.9)
+
+File breakdown:
+  test_pigs.py       (6 tests)  — create, list, get, update, deactivate, filter by category
+  test_health.py     (9 tests)  — full CRUD, filter by pig, 404/400 error cases
+  test_farrowings.py (4 tests)  — create, reject non-sow, filter by sow, update weaning
+  test_pens.py       (8 tests)  — create, duplicate rejection, list, get, occupancy tracking, update
+  test_scan.py       (12 tests) — 8 parse_tag unit tests + 4 API endpoint tests
+  test_dashboard.py  (5 tests)  — empty DB summary, summary with data, health dist, pen util, farrowing stats
+
+Test setup (tests/conftest.py):
+  - Uses a separate test SQLite file (test_farmatrack.db)
+  - Each test gets a fresh database (create_all on start, drop_all on teardown)
+  - FastAPI dependency override injects the test session
+  - Fixtures: setup_db (autouse), db (direct session), client (TestClient)
+
+
+====================================================================================================
+HOW TO RUN
+====================================================================================================
+
+Prerequisites:
+  python3.9 -m pip install -r requirements.txt
+
+Start the API server:
+  uvicorn main:app --reload
+
+Start the Streamlit dashboard (in a separate terminal):
+  streamlit run dashboard/app.py
+
+Seed demo data (optional):
+  python database/seed.py
+
+Run tests:
+  python3.9 -m pytest tests/ -v
+
+
+====================================================================================================
+KNOWN ISSUES / NOTES
+====================================================================================================
+
+1. Pydantic deprecation warning:
+   config.py uses the old Pydantic v1 `class Config:` syntax inside BaseSettings.
+   Pydantic v2 still supports it but emits a deprecation warning. Fix when convenient:
+   Replace `class Config: env_file = ".env"` with `model_config = SettingsConfigDict(env_file=".env")`.
+
+2. Python version:
+   The project was built and tested on Python 3.9. The system default python3 (3.14 on this machine)
+   does NOT have the project dependencies installed. Always use python3.9 explicitly.
+
+3. Tesseract OCR:
+   Image scanning requires Tesseract to be installed on the OS and the path set in .env
+   (TESSERACT_CMD). Default path is /usr/bin/tesseract. If not installed, image scan
+   returns None gracefully — text scan still works.
+
+4. No delete endpoint for Pens or Farrowings:
+   Pens cannot be deleted (would orphan pigs). Farrowings cannot be deleted (permanent records).
+   This is intentional.
+
+5. Soft-delete for Pigs:
+   DELETE /pigs/{id} sets is_active=False. The pig record and all related health/farrowing/scan
+   records remain in the database. is_active filtering is applied by default on list endpoints.
+
+====================================================================================================
+END OF REPORT
+====================================================================================================
