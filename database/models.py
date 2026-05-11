@@ -90,8 +90,8 @@ class ScanLog(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     pig_id = Column(Integer, ForeignKey("pigs.id"), nullable=True)
-    raw_text = Column(String(200), nullable=False)
-    parsed_tag = Column(String(30), nullable=True)
+    raw_text = Column(Text, nullable=False)
+    parsed_tag = Column(String(50), nullable=True)
     source = Column(Enum(ScanSource), default=ScanSource.EAR_TAG)
     confidence = Column(Float, nullable=True)
     scanned_at = Column(DateTime, default=datetime.utcnow)

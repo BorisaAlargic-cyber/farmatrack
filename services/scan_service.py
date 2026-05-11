@@ -67,9 +67,7 @@ def parse_tag(raw: str) -> tuple[Optional[str], float]:
         best = max(alpha_candidates, key=len)
         return best, 0.65
 
-    # Nothing found — return whatever non-empty cleaned text we have
-    fallback = all_text if all_text else None
-    return fallback, 0.30
+    return None, 0.0
 
 
 def process_scan(db: Session, req: ScanRequest) -> ScanResult:

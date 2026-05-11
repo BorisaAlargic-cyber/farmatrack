@@ -40,6 +40,21 @@ def init_db(database_url: Optional[str] = None) -> None:
     from database.models import Base
     Base.metadata.create_all(bind=engine)
 
+    # Widen scan_logs columns that were too narrow in earlier deployments.
+    # Safe to run repeatedly — PostgreSQL ignores no-op casts; SQLite skipped.
+    if not _is_sqlite:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            try:
+                conn.execute(text(
+                    "ALTER TABLE scan_logs "
+                    "ALTER COLUMN raw_text TYPE TEXT, "
+                    "ALTER COLUMN parsed_tag TYPE VARCHAR(50)"
+                ))
+                conn.commit()
+            except Exception:
+                conn.rollback()
+
 
 def get_db() -> Generator[Session, None, None]:
     """FastAPI dependency — yields a DB session and closes it after the request."""
