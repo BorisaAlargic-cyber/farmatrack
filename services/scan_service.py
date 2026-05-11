@@ -9,45 +9,67 @@ from database.enums import ScanSource
 from schemas.scan import ScanRequest, ScanResult
 
 
-# Pattern: 2-4 uppercase letters, dash, 3+ digits (e.g. SOW-001, FIN-012)
-TAG_PATTERN = re.compile(r"[A-Z]{2,4}-\d{3,}")
+# Custom tag format used in the app: 2-4 letters, dash, 3+ digits (SOW-001, FIN-042)
+_CUSTOM_TAG = re.compile(r"[A-Z]{2,4}-\d{3,}")
+
+# Real livestock ear tags: 4-12 digit numbers (government-issued IDs)
+_NUMERIC_TAG = re.compile(r"\d{4,12}")
+
+# Alphanumeric codes like "OL410", "RS12345" (country/farm prefix + numbers)
+_ALPHA_NUM_TAG = re.compile(r"[A-Z]{1,3}\d{3,}")
 
 
-def _fix_ocr_digits(numeric_part: str) -> str:
-    """Apply common OCR corrections only to the numeric portion of a tag."""
-    return numeric_part.replace("O", "0").replace("I", "1").replace("l", "1")
+def _fix_ocr(text: str) -> str:
+    """Common OCR corrections: O→0, I→1 in numeric context."""
+    return re.sub(r"(?<=\d)[OI]|[OI](?=\d)", lambda m: "0" if m.group() == "O" else "1", text)
 
 
 def parse_tag(raw: str) -> tuple[Optional[str], float]:
-    """Extract ear-tag from raw OCR text. Returns (tag, confidence).
+    """Extract an ear-tag from raw OCR text. Returns (tag, confidence).
 
-    Two-pass approach:
-      1. Clean input and try strict regex match.
-      2. If no match, apply OCR digit corrections (O→0, I→1) to the part
-         after each dash and retry — this handles cases like "FIN-O12"
-         without corrupting letter prefixes like SOW or GLT.
+    Tries four passes in priority order:
+      1. Custom app format (SOW-001)  — high confidence
+      2. OCR-corrected custom format  — slightly lower
+      3. Government numeric ID (4-12 digits) — medium confidence
+      4. Alphanumeric code (OL410, RS123) — lower confidence
+    Picks the longest match when multiple candidates exist.
     """
-    cleaned = raw.strip().upper().replace(" ", "")
-    cleaned = re.sub(r"[^A-Z0-9\-]", "", cleaned)
+    # Normalise: uppercase, strip whitespace/newlines between passes
+    lines = [re.sub(r"[^A-Z0-9\-]", "", line.strip().upper()) for line in raw.splitlines()]
+    all_text = "".join(lines)
 
-    # Pass 1: strict match on cleaned input
-    match = TAG_PATTERN.search(cleaned)
-    if match:
-        return match.group(), 0.90
+    # Pass 1 — custom format on cleaned text
+    matches = _CUSTOM_TAG.findall(all_text)
+    if matches:
+        return max(matches, key=len), 0.90
 
-    # Pass 2: fix OCR errors in the numeric portion and retry
-    corrected = re.sub(
-        r"(?<=-)[A-Z0-9]+",
-        lambda m: _fix_ocr_digits(m.group()),
-        cleaned,
-    )
-    match = TAG_PATTERN.search(corrected)
-    if match:
-        return match.group(), 0.85  # slightly lower confidence for OCR-corrected
+    # Pass 2 — custom format after OCR digit corrections
+    corrected = _fix_ocr(all_text)
+    corrected = re.sub(r"(?<=-)[A-Z0-9]+", lambda m: m.group().replace("O", "0").replace("I", "1"), corrected)
+    matches = _CUSTOM_TAG.findall(corrected)
+    if matches:
+        return max(matches, key=len), 0.85
 
-    # Fallback
-    fallback = cleaned if cleaned else None
-    return fallback, 0.40
+    # Pass 3 — numeric-only government tag (longest wins)
+    # Search each line separately to avoid joining unrelated numbers
+    numeric_candidates: list[str] = []
+    for line in lines:
+        numeric_candidates.extend(_NUMERIC_TAG.findall(line))
+    if numeric_candidates:
+        best = max(numeric_candidates, key=len)
+        return best, 0.75
+
+    # Pass 4 — alphanumeric code like OL410
+    alpha_candidates: list[str] = []
+    for line in lines:
+        alpha_candidates.extend(_ALPHA_NUM_TAG.findall(line))
+    if alpha_candidates:
+        best = max(alpha_candidates, key=len)
+        return best, 0.65
+
+    # Nothing found — return whatever non-empty cleaned text we have
+    fallback = all_text if all_text else None
+    return fallback, 0.30
 
 
 def process_scan(db: Session, req: ScanRequest) -> ScanResult:
