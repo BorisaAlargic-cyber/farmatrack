@@ -10,7 +10,6 @@ import tempfile
 from contextlib import contextmanager
 from typing import Optional
 
-from database.connection import SessionLocal
 from database.enums import ScanSource
 from schemas.pig import PigCreate, PigUpdate, PigRead
 from schemas.pen import PenCreate, PenUpdate, PenOccupancy
@@ -24,6 +23,7 @@ from scanner.ocr import ocr_image
 
 @contextmanager
 def _db():
+    from database.connection import SessionLocal
     db = SessionLocal()
     try:
         yield db

@@ -10,29 +10,17 @@ if _PROJECT_ROOT not in sys.path:
 
 import streamlit as st
 
-# Inject Streamlit Cloud secrets into environment variables BEFORE
-# any database modules are imported, so pydantic-settings picks them up.
+# Pull DATABASE_URL directly from st.secrets so Streamlit Cloud secrets
+# always win — never rely on os.environ which may hold a stale value from
+# a previous deployment.
+_db_url = None
 try:
-    for _k, _v in st.secrets.items():
-        if isinstance(_v, str) and _k not in os.environ:
-            os.environ[_k] = _v
+    _db_url = st.secrets.get("DATABASE_URL")
 except Exception:
     pass
-
-# Temporary debug — shows masked DATABASE_URL so we can verify the secret is correct
-try:
-    import re
-    _raw = st.secrets.get("DATABASE_URL") or os.environ.get("DATABASE_URL", "NOT SET")
-    _masked = re.sub(r"://([^:]+):([^@]+)@", r"://\1:****@", _raw)
-    st.sidebar.caption(f"🔌 DB: `{_masked}`")
-except Exception:
-    pass
-
-from config import get_settings
-get_settings.cache_clear()
 
 from database.connection import init_db
-init_db()
+init_db(database_url=_db_url)
 
 st.set_page_config(
     page_title="FarmaTrack",
