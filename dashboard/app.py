@@ -19,6 +19,15 @@ try:
 except Exception:
     pass
 
+# Temporary debug — shows masked DATABASE_URL so we can verify the secret is correct
+try:
+    import re
+    _raw = st.secrets.get("DATABASE_URL") or os.environ.get("DATABASE_URL", "NOT SET")
+    _masked = re.sub(r"://([^:]+):([^@]+)@", r"://\1:****@", _raw)
+    st.sidebar.caption(f"🔌 DB: `{_masked}`")
+except Exception:
+    pass
+
 from config import get_settings
 get_settings.cache_clear()
 
