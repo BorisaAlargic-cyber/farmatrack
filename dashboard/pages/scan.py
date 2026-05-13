@@ -99,27 +99,27 @@ def render():
                         parsed, _ = parse_tag(raw_text or "")
                         st.session_state["_cam_key"] = photo_key
                         st.session_state["_cam_ocr"] = parsed or ""
-                        st.session_state.pop("_lookup_cam", None)
+                        if parsed:
+                            _do_lookup(parsed, key_suffix="cam")
+                        else:
+                            st.session_state.pop("_lookup_cam", None)
                     except Exception:
                         st.session_state["_cam_key"] = photo_key
                         st.session_state["_cam_ocr"] = ""
 
             ocr_guess = st.session_state.get("_cam_ocr", "")
-            st.info(
-                "OCR pre-fills the field below — check the photo and correct the number if needed, "
-                "then click **Look Up**."
-            )
+            _show_lookup_result("cam")
+
+            if not ocr_guess:
+                st.warning("Could not read a number from the photo. Enter it manually below.")
+
             tag_input = st.text_input(
-                "Tag number", value=ocr_guess, placeholder="e.g. 2419",
+                "Correct tag number if needed", value=ocr_guess, placeholder="e.g. 2419",
                 key=f"cam_tag_{photo_key}",
             )
-            if st.button("🔍 Look Up", type="primary", key="cam_lookup"):
-                if not tag_input.strip():
-                    st.warning("Enter the tag number from the photo.")
-                else:
+            if st.button("🔍 Look Up", key="cam_lookup"):
+                if tag_input.strip():
                     _do_lookup(tag_input.strip(), key_suffix="cam")
-
-            _show_lookup_result("cam")
 
     # ── Manual entry ───────────────────────────────────────
     with tab_text:
@@ -143,29 +143,32 @@ def render():
                         res = api.scan_image(uploaded.getvalue(), uploaded.name)
                         st.session_state["_img_key"] = photo_key_u
                         st.session_state["_img_result"] = res
-                        st.session_state.pop("_lookup_img", None)
+                        parsed = res.get("parsed_tag") or ""
+                        if parsed:
+                            _do_lookup(parsed, key_suffix="img")
+                        else:
+                            st.session_state.pop("_lookup_img", None)
                     except Exception as e:
                         st.session_state["_img_result"] = None
                         st.error(str(e))
 
             res = st.session_state.get("_img_result")
             if res:
+                _show_lookup_result("img")
+
                 ocr_guess_u = res.get("parsed_tag") or ""
+                if not ocr_guess_u:
+                    st.warning("Could not read a number from the photo. Enter it manually below.")
+
                 tag_input_u = st.text_input(
-                    "Tag number (correct if needed)",
+                    "Correct tag number if needed",
                     value=ocr_guess_u,
                     placeholder="e.g. 2419",
                     key=f"img_tag_{photo_key_u}",
                 )
-                if st.button("🔍 Look Up", type="primary", key="img_lookup"):
+                if st.button("🔍 Look Up", key="img_lookup"):
                     if tag_input_u.strip():
                         _do_lookup(tag_input_u.strip(), key_suffix="img")
-
-                _show_lookup_result("img")
-
-                if res.get("raw_text"):
-                    with st.expander("Raw OCR output"):
-                        st.code(res["raw_text"])
 
     # ── Scan logs ──────────────────────────────────────────
     with tab_logs:
