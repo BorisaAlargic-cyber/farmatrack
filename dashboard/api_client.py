@@ -154,6 +154,15 @@ def list_farrowings(sow_id: Optional[int] = None) -> list[dict]:
         return result
 
 
+def list_upcoming_farrowings(days_ahead: int) -> list[dict]:
+    with _db() as db:
+        rows = farrowing_service.list_upcoming_farrowings(db, days_ahead)
+        for r in rows:
+            r["insemination_date"] = r["insemination_date"].isoformat() if r["insemination_date"] else None
+            r["expected_farrowing_date"] = r["expected_farrowing_date"].isoformat() if r["expected_farrowing_date"] else None
+        return rows
+
+
 def add_insemination(sow_id: int, insemination_date) -> dict:
     with _db() as db:
         try:
