@@ -1,5 +1,6 @@
 """Service layer for Farrowing operations."""
 
+from datetime import date
 from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -17,11 +18,34 @@ def list_farrowings(db: Session, sow_id: Optional[int] = None, skip: int = 0, li
     q = db.query(Farrowing)
     if sow_id:
         q = q.filter(Farrowing.sow_id == sow_id)
-    return q.order_by(Farrowing.farrowing_date.desc()).offset(skip).limit(limit).all()
+    return q.order_by(Farrowing.created_at.asc()).offset(skip).limit(limit).all()
+
+
+def list_farrowings_for_card(db: Session, sow_id: int) -> list[dict]:
+    """Return enriched farrowing dicts with farrowing_number and expected_farrowing_date."""
+    farrowings = list_farrowings(db, sow_id=sow_id)
+    result = []
+    for i, f in enumerate(farrowings):
+        result.append({
+            "id": f.id,
+            "sow_id": f.sow_id,
+            "farrowing_number": i + 1,
+            "insemination_date": f.insemination_date,
+            "expected_farrowing_date": f.expected_farrowing_date,
+            "farrowing_date": f.farrowing_date,
+            "live_born": f.live_born,
+            "stillborn": f.stillborn,
+            "mummified": f.mummified,
+            "weaned_count": f.weaned_count,
+            "wean_date": f.wean_date,
+            "notes": f.notes,
+            "total_born": f.total_born,
+            "created_at": f.created_at,
+        })
+    return result
 
 
 def create_farrowing(db: Session, data: FarrowingCreate) -> Farrowing:
-    # Validate sow exists and is a sow/gilt
     sow = db.query(Pig).filter(Pig.id == data.sow_id).first()
     if not sow:
         raise ValueError(f"Pig id={data.sow_id} not found.")
@@ -32,6 +56,30 @@ def create_farrowing(db: Session, data: FarrowingCreate) -> Farrowing:
     db.commit()
     db.refresh(far)
     return far
+
+
+def add_insemination(db: Session, sow_id: int, insemination_date: date) -> Farrowing:
+    """Create a new reproductive cycle record starting with insemination."""
+    data = FarrowingCreate(sow_id=sow_id, insemination_date=insemination_date)
+    return create_farrowing(db, data)
+
+
+def record_farrowing(
+    db: Session,
+    farrowing_id: int,
+    farrowing_date: date,
+    live_born: int,
+    stillborn: int,
+    mummified: int,
+) -> Optional[Farrowing]:
+    """Record the actual farrowing outcome on an existing insemination record."""
+    data = FarrowingUpdate(
+        farrowing_date=farrowing_date,
+        live_born=live_born,
+        stillborn=stillborn,
+        mummified=mummified,
+    )
+    return update_farrowing(db, farrowing_id, data)
 
 
 def update_farrowing(db: Session, farrowing_id: int, data: FarrowingUpdate) -> Optional[Farrowing]:

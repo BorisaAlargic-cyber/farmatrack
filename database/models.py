@@ -69,8 +69,9 @@ class Farrowing(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     sow_id = Column(Integer, ForeignKey("pigs.id"), nullable=False)
-    farrowing_date = Column(Date, nullable=False)
-    live_born = Column(Integer, nullable=False, default=0)
+    insemination_date = Column(Date, nullable=True)
+    farrowing_date = Column(Date, nullable=True)
+    live_born = Column(Integer, nullable=True)
     stillborn = Column(Integer, nullable=False, default=0)
     mummified = Column(Integer, nullable=False, default=0)
     weaned_count = Column(Integer, nullable=True)
@@ -81,8 +82,13 @@ class Farrowing(Base):
     sow = relationship("Pig", back_populates="farrowings")
 
     @property
+    def expected_farrowing_date(self):
+        from datetime import timedelta
+        return (self.insemination_date + timedelta(days=114)) if self.insemination_date else None
+
+    @property
     def total_born(self) -> int:
-        return self.live_born + self.stillborn + self.mummified
+        return (self.live_born or 0) + self.stillborn + self.mummified
 
 
 class ScanLog(Base):

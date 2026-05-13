@@ -40,11 +40,10 @@ def init_db(database_url: Optional[str] = None) -> None:
     from database.models import Base
     Base.metadata.create_all(bind=engine)
 
-    # Widen scan_logs columns that were too narrow in earlier deployments.
-    # Safe to run repeatedly — PostgreSQL ignores no-op casts; SQLite skipped.
     if not _is_sqlite:
         from sqlalchemy import text
         with engine.connect() as conn:
+            # v0.2 — widen scan_logs columns
             try:
                 conn.execute(text(
                     "ALTER TABLE scan_logs "
@@ -54,6 +53,18 @@ def init_db(database_url: Optional[str] = None) -> None:
                 conn.commit()
             except Exception:
                 conn.rollback()
+
+            # v0.4 — reproductive tracking columns
+            for sql in [
+                "ALTER TABLE farrowings ADD COLUMN IF NOT EXISTS insemination_date DATE",
+                "ALTER TABLE farrowings ALTER COLUMN farrowing_date DROP NOT NULL",
+                "ALTER TABLE farrowings ALTER COLUMN live_born DROP NOT NULL",
+            ]:
+                try:
+                    conn.execute(text(sql))
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
 
 
 def get_db() -> Generator[Session, None, None]:

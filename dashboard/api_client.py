@@ -143,7 +143,32 @@ def delete_health_record(record_id: int):
 def list_farrowings(sow_id: Optional[int] = None) -> list[dict]:
     with _db() as db:
         rows = farrowing_service.list_farrowings(db, sow_id=sow_id)
-        return [FarrowingRead.model_validate(f).model_dump(mode="json") for f in rows]
+        result = []
+        for i, f in enumerate(rows):
+            d = FarrowingRead.model_validate(f).model_dump(mode="json")
+            d["farrowing_number"] = i + 1
+            if f.expected_farrowing_date:
+                d["expected_farrowing_date"] = f.expected_farrowing_date.isoformat()
+            d["total_born"] = f.total_born
+            result.append(d)
+        return result
+
+
+def add_insemination(sow_id: int, insemination_date) -> dict:
+    with _db() as db:
+        try:
+            far = farrowing_service.add_insemination(db, sow_id, insemination_date)
+            return FarrowingRead.model_validate(far).model_dump(mode="json")
+        except ValueError as e:
+            raise RuntimeError(str(e))
+
+
+def record_farrowing(farrowing_id: int, farrowing_date, live_born: int, stillborn: int, mummified: int) -> dict:
+    with _db() as db:
+        far = farrowing_service.record_farrowing(db, farrowing_id, farrowing_date, live_born, stillborn, mummified)
+        if not far:
+            raise RuntimeError(f"Farrowing record {farrowing_id} not found")
+        return FarrowingRead.model_validate(far).model_dump(mode="json")
 
 
 def create_farrowing(data: dict) -> dict:
