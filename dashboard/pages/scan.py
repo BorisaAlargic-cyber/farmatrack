@@ -41,6 +41,35 @@ def _register_dialog(ear_tag: str):
             st.error(str(e))
 
 
+def _do_lookup(tag: str, key_suffix: str):
+    """Run scan_text and store result in session state."""
+    try:
+        res = api.scan_text(tag)
+        st.session_state[f"_lookup_{key_suffix}"] = {"tag": tag, "res": res}
+    except Exception as e:
+        st.error(str(e))
+
+
+def _show_lookup_result(key_suffix: str):
+    """Render stored lookup result — called on every rerun so buttons persist."""
+    data = st.session_state.get(f"_lookup_{key_suffix}")
+    if not data:
+        return
+    tag = data["tag"]
+    res = data["res"]
+
+    if res.get("pig_id"):
+        st.success(res["message"])
+        try:
+            pig_card(api.get_pig(res["pig_id"]))
+        except Exception:
+            pass
+    else:
+        st.warning(f"Tag **`{tag}`** is not registered yet.")
+        if st.button("➕ Register this pig", type="primary", key=f"reg_{key_suffix}_{tag}"):
+            _register_dialog(tag)
+
+
 def render():
     st.title("📷 Scan Ear Tag")
 
@@ -53,47 +82,44 @@ def render():
         photo = st.camera_input("Take a photo of the ear tag")
 
         if photo is not None:
-            # Cache OCR result per photo so button clicks don't re-trigger scan
             photo_key = hash(photo.getvalue())
             if st.session_state.get("_cam_key") != photo_key:
                 with st.spinner("Reading tag..."):
                     try:
                         from scanner.ocr import ocr_image
                         import tempfile, os
-                        suffix = ".jpg"
-                        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
                             tmp.write(photo.getvalue())
                             tmp_path = tmp.name
                         try:
                             raw_text = ocr_image(tmp_path) or ""
                         finally:
                             os.unlink(tmp_path)
-
                         from services.scan_service import parse_tag
-                        parsed, conf = parse_tag(raw_text or "")
+                        parsed, _ = parse_tag(raw_text or "")
                         st.session_state["_cam_key"] = photo_key
                         st.session_state["_cam_ocr"] = parsed or ""
+                        st.session_state.pop("_lookup_cam", None)
                     except Exception:
                         st.session_state["_cam_key"] = photo_key
                         st.session_state["_cam_ocr"] = ""
 
             ocr_guess = st.session_state.get("_cam_ocr", "")
-
             st.info(
                 "OCR pre-fills the field below — check the photo and correct the number if needed, "
                 "then click **Look Up**."
             )
             tag_input = st.text_input(
-                "Tag number",
-                value=ocr_guess,
-                placeholder="e.g. 2419",
+                "Tag number", value=ocr_guess, placeholder="e.g. 2419",
                 key=f"cam_tag_{photo_key}",
             )
             if st.button("🔍 Look Up", type="primary", key="cam_lookup"):
                 if not tag_input.strip():
                     st.warning("Enter the tag number from the photo.")
                 else:
-                    _lookup_and_show(tag_input.strip(), key_suffix="cam")
+                    _do_lookup(tag_input.strip(), key_suffix="cam")
+
+            _show_lookup_result("cam")
 
     # ── Manual entry ───────────────────────────────────────
     with tab_text:
@@ -102,7 +128,9 @@ def render():
             if not raw.strip():
                 st.warning("Please enter a tag number.")
             else:
-                _lookup_and_show(raw.strip(), key_suffix="txt")
+                _do_lookup(raw.strip(), key_suffix="txt")
+
+        _show_lookup_result("txt")
 
     # ── Image upload ───────────────────────────────────────
     with tab_img:
@@ -115,6 +143,7 @@ def render():
                         res = api.scan_image(uploaded.getvalue(), uploaded.name)
                         st.session_state["_img_key"] = photo_key_u
                         st.session_state["_img_result"] = res
+                        st.session_state.pop("_lookup_img", None)
                     except Exception as e:
                         st.session_state["_img_result"] = None
                         st.error(str(e))
@@ -130,7 +159,9 @@ def render():
                 )
                 if st.button("🔍 Look Up", type="primary", key="img_lookup"):
                     if tag_input_u.strip():
-                        _lookup_and_show(tag_input_u.strip(), key_suffix="img")
+                        _do_lookup(tag_input_u.strip(), key_suffix="img")
+
+                _show_lookup_result("img")
 
                 if res.get("raw_text"):
                     with st.expander("Raw OCR output"):
@@ -147,22 +178,3 @@ def render():
                 st.info("No scan logs yet.")
         except Exception as e:
             st.error(str(e))
-
-
-def _lookup_and_show(tag: str, key_suffix: str = ""):
-    try:
-        res = api.scan_text(tag)
-    except Exception as e:
-        st.error(str(e))
-        return
-
-    if res.get("pig_id"):
-        st.success(res["message"])
-        try:
-            pig_card(api.get_pig(res["pig_id"]))
-        except Exception:
-            pass
-    else:
-        st.warning(f"Tag **`{tag}`** is not registered yet.")
-        if st.button("➕ Register this pig", type="primary", key=f"reg_{key_suffix}_{tag}"):
-            _register_dialog(tag)
