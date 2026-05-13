@@ -8,8 +8,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "FarmaTrack"
     DATABASE_URL: str = "sqlite:///./farmatrack.db"
     API_BASE_URL: str = "http://localhost:8000"
-    TESSERACT_CMD: str = "/usr/bin/tesseract"
-    GOOGLE_VISION_API_KEY: str = ""  # Gemini API key from aistudio.google.com
+    OPENROUTER_API_KEY: str = ""  # from openrouter.ai
     DEBUG: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
