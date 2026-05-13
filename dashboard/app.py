@@ -31,6 +31,12 @@ st.set_page_config(
     layout="wide",
 )
 
+# Hide the auto-generated Streamlit pages nav (we use our own radio nav)
+st.markdown(
+    "<style>[data-testid='stSidebarNav'] { display: none; }</style>",
+    unsafe_allow_html=True,
+)
+
 # ── Sidebar navigation ────────────────────────────────────
 PAGES = {
     "📊 Dashboard": "dashboard",
