@@ -9,7 +9,7 @@ import requests as _requests
 from config import get_settings
 
 _URL = "https://openrouter.ai/api/v1/chat/completions"
-_MODEL = "google/gemini-flash-1.5"
+_MODEL = "openai/gpt-4o-mini"
 
 _PROMPT = (
     "Look at this image and read the number on it. "
