@@ -39,6 +39,12 @@ section[data-testid="stSidebar"] > div {
     background-color: #2C2A1E !important;
 }
 
+/* ── Sidebar button wrapper — remove extra spacing ── */
+section[data-testid="stSidebar"] .stButton {
+    width: 100% !important;
+    margin: 0 !important;
+}
+
 /* ── Sidebar buttons — flat nav items ── */
 section[data-testid="stSidebar"] .stButton > button {
     background: transparent !important;
@@ -46,38 +52,49 @@ section[data-testid="stSidebar"] .stButton > button {
     color: #F5F0E8 !important;
     text-align: left !important;
     justify-content: flex-start !important;
-    padding: 6px 12px 6px 16px !important;
+    align-items: center !important;
+    padding: 7px 12px 7px 16px !important;
     border-radius: 7px !important;
     font-size: 0.82rem !important;
     font-weight: 400 !important;
     width: 100% !important;
     box-shadow: none !important;
-    margin: 1px 0 !important;
-    transition: background 0.15s;
+    margin: 0 !important;
     display: flex !important;
+    line-height: 1.3 !important;
+}
+/* Force all inner elements left-aligned */
+section[data-testid="stSidebar"] .stButton > button > div,
+section[data-testid="stSidebar"] .stButton > button p {
+    text-align: left !important;
+    font-size: 0.82rem !important;
+    font-weight: 400 !important;
+    color: #F5F0E8 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
 }
 section[data-testid="stSidebar"] .stButton > button:hover {
     background: rgba(255,255,255,0.09) !important;
-    color: #F5F0E8 !important;
 }
 section[data-testid="stSidebar"] .stButton > button:focus,
 section[data-testid="stSidebar"] .stButton > button:active {
     box-shadow: none !important;
     outline: none !important;
-    color: #F5F0E8 !important;
 }
 
 /* ── Active nav item (injected as markdown) ── */
 .nav-active {
     background-color: #3E3B2A;
     color: #F5F0E8;
-    padding: 6px 12px 6px 13px;
+    padding: 7px 12px 7px 13px;
     border-radius: 7px;
     font-size: 0.82rem;
-    font-weight: 500;
-    margin: 1px 0;
+    font-weight: 400;
+    margin: 0;
     cursor: default;
     border-left: 3px solid #6B8540;
+    line-height: 1.3;
 }
 
 /* ── Section headers ── */
