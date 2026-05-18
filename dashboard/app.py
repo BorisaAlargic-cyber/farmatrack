@@ -29,6 +29,7 @@ st.set_page_config(
 )
 
 st.markdown("""
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <style>
 /* ── Hide auto Streamlit nav ── */
 [data-testid="stSidebarNav"] { display: none; }
@@ -39,84 +40,76 @@ section[data-testid="stSidebar"] > div {
     background-color: #2C2A1E !important;
 }
 
-/* ── Sidebar button wrapper — remove extra spacing ── */
-section[data-testid="stSidebar"] .stButton {
-    width: 100% !important;
-    margin: 0 !important;
-}
-
-/* ── Sidebar buttons — flat nav items ── */
-section[data-testid="stSidebar"] .stButton > button {
-    background: transparent !important;
-    border: none !important;
-    color: #F5F0E8 !important;
-    text-align: left !important;
-    justify-content: flex-start !important;
-    align-items: center !important;
-    padding: 7px 12px 7px 16px !important;
-    border-radius: 7px !important;
-    font-size: 0.82rem !important;
-    font-weight: 400 !important;
-    width: 100% !important;
-    box-shadow: none !important;
-    margin: 0 !important;
-    display: flex !important;
-    line-height: 1.3 !important;
-}
-/* Force all inner elements left-aligned */
-section[data-testid="stSidebar"] .stButton > button > div,
-section[data-testid="stSidebar"] .stButton > button p {
-    text-align: left !important;
-    font-size: 0.82rem !important;
-    font-weight: 400 !important;
-    color: #F5F0E8 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    width: 100% !important;
-}
-section[data-testid="stSidebar"] .stButton > button:hover {
-    background: rgba(255,255,255,0.09) !important;
-}
-section[data-testid="stSidebar"] .stButton > button:focus,
-section[data-testid="stSidebar"] .stButton > button:active {
-    box-shadow: none !important;
-    outline: none !important;
-}
-
-/* ── Active nav item (injected as markdown) ── */
-.nav-active {
-    background-color: #3E3B2A;
-    color: #F5F0E8;
-    padding: 7px 12px 7px 13px;
-    border-radius: 7px;
+/* ── Nav links ── */
+.nav-link {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    text-decoration: none !important;
+    color: rgba(245,240,232,0.55) !important;
     font-size: 0.82rem;
     font-weight: 400;
-    margin: 0;
-    cursor: default;
-    border-left: 3px solid #6B8540;
+    padding: 8px 14px 8px 16px;
+    border-radius: 6px;
+    margin: 1px 0;
     line-height: 1.3;
+    border-left: 2px solid transparent;
+    transition: color 0.15s, background 0.15s;
 }
+.nav-link:hover {
+    background: rgba(255,255,255,0.05);
+    color: rgba(245,240,232,0.9) !important;
+    text-decoration: none !important;
+}
+.nav-link-active {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    text-decoration: none !important;
+    color: #c8d49a !important;
+    font-size: 0.82rem;
+    font-weight: 400;
+    padding: 8px 14px 8px 14px;
+    border-radius: 6px;
+    margin: 1px 0;
+    line-height: 1.3;
+    background: rgba(154,171,94,0.12);
+    border-left: 2px solid #9aab5e;
+}
+
+/* ── Nav icon size ── */
+.nav-link i, .nav-link-active i { font-size: 15px; flex-shrink: 0; }
 
 /* ── Section headers ── */
 .nav-section {
-    color: #6B6450 !important;
-    font-size: 0.68rem;
+    color: #6B6450;
+    font-size: 0.65rem;
     font-weight: 700;
     letter-spacing: 0.13em;
     text-transform: uppercase;
-    padding: 18px 4px 5px 16px;
-    margin: 0;
+    padding: 16px 0 5px 16px;
 }
 
-/* ── Sidebar title area ── */
-section[data-testid="stSidebar"] h1 {
-    color: #F5F0E8 !important;
-    font-size: 1.5rem !important;
-    margin-bottom: 2px !important;
+/* ── Sidebar footer (user avatar) ── */
+.sidebar-footer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    margin-top: 8px;
 }
-section[data-testid="stSidebar"] p {
-    color: #7A7260 !important;
+.user-avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: #6B8540;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600; color: #F5F0E8;
+    flex-shrink: 0;
 }
+.user-name { font-size: 12px; color: rgba(245,240,232,0.8); font-weight: 500; }
+.user-role { font-size: 10px; color: #6B6450; }
+
+/* ── Sidebar hr ── */
 section[data-testid="stSidebar"] hr {
     border-color: #3E3C2E !important;
     margin: 8px 0 4px 0;
@@ -173,40 +166,40 @@ section[data-testid="stSidebar"] hr {
 """, unsafe_allow_html=True)
 
 # ── Sidebar ────────────────────────────────────────────────
-if "_page" not in st.session_state:
-    st.session_state["_page"] = "dashboard"
+page_key = st.query_params.get("page", "dashboard")
 
-def _nav(label, key):
-    if st.session_state["_page"] == key:
-        st.sidebar.markdown(f"<div class='nav-active'>{label}</div>", unsafe_allow_html=True)
-    else:
-        if st.sidebar.button(label, key=f"nav_{key}", use_container_width=True):
-            st.session_state["_page"] = key
-            st.rerun()
+def _link(label, key, icon="ti-circle"):
+    cls = "nav-link-active" if page_key == key else "nav-link"
+    return f'<a href="?page={key}" class="{cls}" target="_self"><i class="ti {icon}"></i>{label}</a>'
 
 st.sidebar.markdown("""
-<div style='padding: 8px 0 4px 0;'>
-    <div style='font-size:1.4rem;font-weight:700;color:#F5F0E8;letter-spacing:0.01em;'>FarmaTrack</div>
+<div style='padding:8px 0 4px 0;'>
+    <div style='font-size:1.4rem;font-weight:700;color:#F5F0E8;'>FarmaTrack</div>
     <div style='font-size:0.68rem;color:#6B6450;letter-spacing:0.12em;text-transform:uppercase;margin-top:2px;'>Farm Management</div>
 </div>
 """, unsafe_allow_html=True)
 st.sidebar.markdown("---")
 
-st.sidebar.markdown("<div class='nav-section'>OVERVIEW</div>", unsafe_allow_html=True)
-_nav("Dashboard",       "dashboard")
-
-st.sidebar.markdown("<div class='nav-section'>ANIMALS</div>", unsafe_allow_html=True)
-_nav("Pig Registry",       "herd")
-_nav("Pens & Enclosures",  "pens")
-_nav("Farrowing",          "farrowings")
-
-st.sidebar.markdown("<div class='nav-section'>OPERATIONS</div>", unsafe_allow_html=True)
-_nav("Health",    "health")
-_nav("OCR Scan",  "scan")
+st.sidebar.markdown(f"""
+<div class='nav-section'>OVERVIEW</div>
+{_link("Dashboard", "dashboard", "ti-layout-dashboard")}
+<div class='nav-section'>ANIMALS</div>
+{_link("Pig Registry", "herd", "ti-ear")}
+{_link("Pens &amp; Enclosures", "pens", "ti-home-2")}
+{_link("Farrowing", "farrowings", "ti-clipboard-list")}
+<div class='nav-section'>OPERATIONS</div>
+{_link("Health", "health", "ti-heart-plus")}
+{_link("OCR Scan", "scan", "ti-scan")}
+<div style="margin-top:24px; border-top:1px solid rgba(255,255,255,0.08); padding-top:14px; display:flex; align-items:center; gap:10px; padding-left:14px;">
+    <div class="user-avatar">BK</div>
+    <div>
+        <div class="user-name">Boriša K.</div>
+        <div class="user-role">Administrator</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 # ── Page render ────────────────────────────────────────────
-page_key = st.session_state["_page"]
-
 if page_key == "dashboard":
     from dashboard.pages.dashboard import render
 elif page_key == "scan":
@@ -219,5 +212,7 @@ elif page_key == "health":
     from dashboard.pages.health import render
 elif page_key == "farrowings":
     from dashboard.pages.farrowings import render
+else:
+    from dashboard.pages.dashboard import render
 
 render()

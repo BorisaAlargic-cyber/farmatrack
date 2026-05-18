@@ -17,7 +17,12 @@ from schemas.health import HealthRecordCreate, HealthRecordUpdate, HealthRecordR
 from schemas.farrowing import FarrowingCreate, FarrowingUpdate, FarrowingRead
 from schemas.scan import ScanRequest, ScanResult, ScanLogRead
 from services import pig_service, pen_service, health_service, farrowing_service, scan_service
-from services.dashboard_service import get_summary as _get_summary
+from services.dashboard_service import (
+    get_summary as _get_summary,
+    get_recent_pigs as _get_recent_pigs,
+    get_weekly_piglets as _get_weekly_piglets,
+    get_recent_activity as _get_recent_activity,
+)
 from scanner.ocr import ocr_image
 
 
@@ -35,6 +40,21 @@ def _db():
 def get_summary() -> dict:
     with _db() as db:
         return _get_summary(db)
+
+
+def get_recent_pigs(limit: int = 6) -> list[dict]:
+    with _db() as db:
+        return _get_recent_pigs(db, limit=limit)
+
+
+def get_weekly_piglets() -> list[dict]:
+    with _db() as db:
+        return _get_weekly_piglets(db)
+
+
+def get_recent_activity(limit: int = 5) -> list[dict]:
+    with _db() as db:
+        return _get_recent_activity(db, limit=limit)
 
 
 # ── Pigs ───────────────────────────────────────────────────
