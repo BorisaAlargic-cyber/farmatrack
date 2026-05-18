@@ -34,60 +34,75 @@ st.markdown("""
 [data-testid="stSidebarNav"] { display: none; }
 
 /* ── Sidebar background ── */
-section[data-testid="stSidebar"] {
-    background-color: #2C2A1E !important;
-}
+section[data-testid="stSidebar"],
 section[data-testid="stSidebar"] > div {
     background-color: #2C2A1E !important;
 }
 
-/* ── All sidebar text ── */
-section[data-testid="stSidebar"] p,
-section[data-testid="stSidebar"] span,
-section[data-testid="stSidebar"] label,
-section[data-testid="stSidebar"] div {
-    color: #D4CDB8 !important;
+/* ── Sidebar buttons — flat nav items ── */
+section[data-testid="stSidebar"] .stButton > button {
+    background: transparent !important;
+    border: none !important;
+    color: #C8BFA8 !important;
+    text-align: left !important;
+    padding: 7px 12px 7px 10px !important;
+    border-radius: 7px !important;
+    font-size: 0.9rem !important;
+    font-weight: 400 !important;
+    width: 100% !important;
+    box-shadow: none !important;
+    margin: 1px 0 !important;
+    transition: background 0.15s;
+}
+section[data-testid="stSidebar"] .stButton > button:hover {
+    background: rgba(255,255,255,0.09) !important;
+    color: #F5F0E8 !important;
+}
+section[data-testid="stSidebar"] .stButton > button:focus {
+    box-shadow: none !important;
+    outline: none !important;
 }
 
-/* ── Sidebar title ── */
+/* ── Active nav item (injected as markdown) ── */
+.nav-active {
+    background-color: #3E3B2A;
+    color: #F5F0E8;
+    padding: 7px 12px 7px 10px;
+    border-radius: 7px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin: 1px 0;
+    cursor: default;
+    border-left: 3px solid #6B8540;
+}
+
+/* ── Section headers ── */
+.nav-section {
+    color: #6B6450 !important;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    padding: 18px 4px 5px 4px;
+    margin: 0;
+}
+
+/* ── Sidebar title area ── */
 section[data-testid="stSidebar"] h1 {
     color: #F5F0E8 !important;
-    font-size: 1.6rem !important;
-    letter-spacing: 0.02em;
+    font-size: 1.5rem !important;
+    margin-bottom: 2px !important;
 }
-
-/* ── Section headers (OVERVIEW / ANIMALS / OPERATIONS) ── */
-section[data-testid="stSidebar"] .section-header {
+section[data-testid="stSidebar"] p {
     color: #7A7260 !important;
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    padding: 16px 0 4px 0;
 }
-
-/* ── Radio nav items ── */
-section[data-testid="stSidebar"] .stRadio label {
-    color: #D4CDB8 !important;
-    font-size: 0.95rem;
-    padding: 4px 8px;
-    border-radius: 6px;
-    cursor: pointer;
-}
-section[data-testid="stSidebar"] .stRadio label:hover {
-    color: #F5F0E8 !important;
-    background-color: rgba(255,255,255,0.08);
-}
-
-/* ── Sidebar divider ── */
 section[data-testid="stSidebar"] hr {
     border-color: #3E3C2E !important;
-    margin: 6px 0;
+    margin: 8px 0 4px 0;
 }
 
 /* ── Main background ── */
-.stApp { background-color: #F7F3EC; }
-.main .block-container { background-color: #F7F3EC; }
+.stApp, .main .block-container { background-color: #F7F3EC; }
 
 /* ── Metric cards ── */
 [data-testid="stMetric"] {
@@ -100,7 +115,7 @@ section[data-testid="stSidebar"] hr {
 [data-testid="stMetricValue"] { color: #2C2A1E !important; font-size: 2rem !important; }
 [data-testid="stMetricLabel"] { color: #7A7260 !important; font-size: 0.75rem !important; text-transform: uppercase; letter-spacing: 0.08em; }
 
-/* ── Dataframes / tables ── */
+/* ── Dataframes ── */
 [data-testid="stDataFrame"] {
     border-radius: 10px;
     overflow: hidden;
@@ -109,24 +124,20 @@ section[data-testid="stSidebar"] hr {
 
 /* ── Containers with border ── */
 [data-testid="stVerticalBlockBorderWrapper"] {
-    background-color: #FFFFFF;
+    background-color: #FFFFFF !important;
     border-radius: 12px !important;
     border-color: #E0D9CC !important;
 }
 
-/* ── Buttons ── */
-.stButton > button {
-    border-radius: 8px;
-    font-weight: 500;
-}
+/* ── Primary buttons ── */
 .stButton > button[kind="primary"] {
     background-color: #6B8540 !important;
     border-color: #6B8540 !important;
     color: white !important;
+    border-radius: 8px;
 }
 .stButton > button[kind="primary"]:hover {
     background-color: #5A7234 !important;
-    border-color: #5A7234 !important;
 }
 
 /* ── Tabs ── */
@@ -135,36 +146,42 @@ section[data-testid="stSidebar"] hr {
     border-radius: 8px;
     padding: 2px;
 }
-.stTabs [data-baseweb="tab"] {
-    border-radius: 6px;
-    color: #5A5444;
-}
-.stTabs [aria-selected="true"] {
-    background-color: #FFFFFF !important;
-    color: #2C2A1E !important;
-}
+.stTabs [data-baseweb="tab"] { border-radius: 6px; color: #5A5444; }
+.stTabs [aria-selected="true"] { background-color: #FFFFFF !important; color: #2C2A1E !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Sidebar navigation ────────────────────────────────────
+# ── Sidebar ────────────────────────────────────────────────
+if "_page" not in st.session_state:
+    st.session_state["_page"] = "dashboard"
+
+def _nav(label, key):
+    if st.session_state["_page"] == key:
+        st.sidebar.markdown(f"<div class='nav-active'>{label}</div>", unsafe_allow_html=True)
+    else:
+        if st.sidebar.button(label, key=f"nav_{key}", use_container_width=True):
+            st.session_state["_page"] = key
+            st.rerun()
+
 st.sidebar.markdown("# 🐷 FarmaTrack")
-st.sidebar.markdown("<p style='color:#7A7260;font-size:0.75rem;margin-top:-12px;letter-spacing:0.08em;'>FARM MANAGEMENT</p>", unsafe_allow_html=True)
+st.sidebar.markdown("<p style='margin-top:-14px;font-size:0.72rem;letter-spacing:0.1em;'>FARM MANAGEMENT</p>", unsafe_allow_html=True)
 st.sidebar.markdown("---")
 
-st.sidebar.markdown("<p class='section-header'>OVERVIEW</p>", unsafe_allow_html=True)
-PAGES = {
-    "⬛ Dashboard":   "dashboard",
-    "📷 Scan Tag":    "scan",
-    "🐖 Pig Registry": "herd",
-    "🏠 Pens":        "pens",
-    "💊 Health":      "health",
-    "🍼 Farrowings":  "farrowings",
-}
+st.sidebar.markdown("<div class='nav-section'>OVERVIEW</div>", unsafe_allow_html=True)
+_nav("⊞  Dashboard",     "dashboard")
 
-selection = st.sidebar.radio("Navigate", list(PAGES.keys()), label_visibility="collapsed")
-page_key = PAGES[selection]
+st.sidebar.markdown("<div class='nav-section'>ANIMALS</div>", unsafe_allow_html=True)
+_nav("🐖  Pig Registry",       "herd")
+_nav("🏠  Pens & Enclosures",  "pens")
+_nav("🍼  Farrowing",          "farrowings")
 
-# ── Dynamic page import ───────────────────────────────────
+st.sidebar.markdown("<div class='nav-section'>OPERATIONS</div>", unsafe_allow_html=True)
+_nav("💊  Health",    "health")
+_nav("📷  OCR Scan",  "scan")
+
+# ── Page render ────────────────────────────────────────────
+page_key = st.session_state["_page"]
+
 if page_key == "dashboard":
     from dashboard.pages.dashboard import render
 elif page_key == "scan":
