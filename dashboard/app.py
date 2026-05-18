@@ -29,7 +29,6 @@ st.set_page_config(
 )
 
 st.markdown("""
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <style>
 /* ── Hide auto Streamlit nav ── */
 [data-testid="stSidebarNav"] { display: none; }
@@ -77,8 +76,8 @@ section[data-testid="stSidebar"] > div {
     border-left: 2px solid #9aab5e;
 }
 
-/* ── Nav icon size ── */
-.nav-link i, .nav-link-active i { font-size: 15px; flex-shrink: 0; }
+/* ── Nav icon ── */
+.nav-icon { font-size: 13px; flex-shrink: 0; opacity: 0.7; }
 
 /* ── Section headers ── */
 .nav-section {
@@ -168,9 +167,19 @@ section[data-testid="stSidebar"] hr {
 # ── Sidebar ────────────────────────────────────────────────
 page_key = st.query_params.get("page", "dashboard")
 
-def _link(label, key, icon="ti-circle"):
+_ICONS = {
+    "dashboard":  "⊞",
+    "herd":       "◎",
+    "pens":       "⌂",
+    "farrowings": "◉",
+    "health":     "✚",
+    "scan":       "⊡",
+}
+
+def _link(label, key):
     cls = "nav-link-active" if page_key == key else "nav-link"
-    return f'<a href="?page={key}" class="{cls}" target="_self"><i class="ti {icon}"></i>{label}</a>'
+    icon = _ICONS.get(key, "□")
+    return f'<a href="?page={key}" class="{cls}" target="_self"><span class="nav-icon">{icon}</span>{label}</a>'
 
 st.sidebar.markdown("""
 <div style='padding:8px 0 4px 0;'>
@@ -182,15 +191,15 @@ st.sidebar.markdown("---")
 
 st.sidebar.markdown(f"""
 <div class='nav-section'>OVERVIEW</div>
-{_link("Dashboard", "dashboard", "ti-layout-dashboard")}
+{_link("Dashboard", "dashboard")}
 <div class='nav-section'>ANIMALS</div>
-{_link("Pig Registry", "herd", "ti-ear")}
-{_link("Pens &amp; Enclosures", "pens", "ti-home-2")}
-{_link("Farrowing", "farrowings", "ti-clipboard-list")}
+{_link("Pig Registry", "herd")}
+{_link("Pens &amp; Enclosures", "pens")}
+{_link("Farrowing", "farrowings")}
 <div class='nav-section'>OPERATIONS</div>
-{_link("Health", "health", "ti-heart-plus")}
-{_link("OCR Scan", "scan", "ti-scan")}
-<div style="margin-top:24px; border-top:1px solid rgba(255,255,255,0.08); padding-top:14px; display:flex; align-items:center; gap:10px; padding-left:14px;">
+{_link("Health", "health")}
+{_link("OCR Scan", "scan")}
+<div style="margin-top:24px;border-top:1px solid rgba(255,255,255,0.08);padding-top:14px;display:flex;align-items:center;gap:10px;padding-left:14px;">
     <div class="user-avatar">BK</div>
     <div>
         <div class="user-name">Boriša K.</div>
