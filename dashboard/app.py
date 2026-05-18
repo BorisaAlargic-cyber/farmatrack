@@ -168,16 +168,16 @@ st.sidebar.markdown("<p style='margin-top:-14px;font-size:0.72rem;letter-spacing
 st.sidebar.markdown("---")
 
 st.sidebar.markdown("<div class='nav-section'>OVERVIEW</div>", unsafe_allow_html=True)
-_nav("⊞  Dashboard",     "dashboard")
+_nav("Dashboard",       "dashboard")
 
 st.sidebar.markdown("<div class='nav-section'>ANIMALS</div>", unsafe_allow_html=True)
-_nav("🐖  Pig Registry",       "herd")
-_nav("🏠  Pens & Enclosures",  "pens")
-_nav("🍼  Farrowing",          "farrowings")
+_nav("Pig Registry",       "herd")
+_nav("Pens & Enclosures",  "pens")
+_nav("Farrowing",          "farrowings")
 
 st.sidebar.markdown("<div class='nav-section'>OPERATIONS</div>", unsafe_allow_html=True)
-_nav("💊  Health",    "health")
-_nav("📷  OCR Scan",  "scan")
+_nav("Health",    "health")
+_nav("OCR Scan",  "scan")
 
 # ── Page render ────────────────────────────────────────────
 page_key = st.session_state["_page"]
