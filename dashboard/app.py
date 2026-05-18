@@ -45,7 +45,7 @@ section[data-testid="stSidebar"] .stButton > button {
     border: none !important;
     color: #C8BFA8 !important;
     text-align: left !important;
-    padding: 7px 12px 7px 10px !important;
+    padding: 7px 12px 7px 16px !important;
     border-radius: 7px !important;
     font-size: 0.9rem !important;
     font-weight: 400 !important;
@@ -67,7 +67,7 @@ section[data-testid="stSidebar"] .stButton > button:focus {
 .nav-active {
     background-color: #3E3B2A;
     color: #F5F0E8;
-    padding: 7px 12px 7px 10px;
+    padding: 7px 12px 7px 16px;
     border-radius: 7px;
     font-size: 0.9rem;
     font-weight: 500;
@@ -83,7 +83,7 @@ section[data-testid="stSidebar"] .stButton > button:focus {
     font-weight: 700;
     letter-spacing: 0.13em;
     text-transform: uppercase;
-    padding: 18px 4px 5px 4px;
+    padding: 18px 4px 5px 16px;
     margin: 0;
 }
 
@@ -163,8 +163,12 @@ def _nav(label, key):
             st.session_state["_page"] = key
             st.rerun()
 
-st.sidebar.markdown("# 🐷 FarmaTrack")
-st.sidebar.markdown("<p style='margin-top:-14px;font-size:0.72rem;letter-spacing:0.1em;'>FARM MANAGEMENT</p>", unsafe_allow_html=True)
+st.sidebar.markdown("""
+<div style='padding: 8px 0 4px 0;'>
+    <div style='font-size:1.4rem;font-weight:700;color:#F5F0E8;letter-spacing:0.01em;'>FarmaTrack</div>
+    <div style='font-size:0.68rem;color:#6B6450;letter-spacing:0.12em;text-transform:uppercase;margin-top:2px;'>Farm Management</div>
+</div>
+""", unsafe_allow_html=True)
 st.sidebar.markdown("---")
 
 st.sidebar.markdown("<div class='nav-section'>OVERVIEW</div>", unsafe_allow_html=True)
