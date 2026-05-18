@@ -43,33 +43,37 @@ section[data-testid="stSidebar"] > div {
 section[data-testid="stSidebar"] .stButton > button {
     background: transparent !important;
     border: none !important;
-    color: #C8BFA8 !important;
+    color: #F5F0E8 !important;
     text-align: left !important;
-    padding: 7px 12px 7px 16px !important;
+    justify-content: flex-start !important;
+    padding: 6px 12px 6px 16px !important;
     border-radius: 7px !important;
-    font-size: 0.9rem !important;
+    font-size: 0.82rem !important;
     font-weight: 400 !important;
     width: 100% !important;
     box-shadow: none !important;
     margin: 1px 0 !important;
     transition: background 0.15s;
+    display: flex !important;
 }
 section[data-testid="stSidebar"] .stButton > button:hover {
     background: rgba(255,255,255,0.09) !important;
     color: #F5F0E8 !important;
 }
-section[data-testid="stSidebar"] .stButton > button:focus {
+section[data-testid="stSidebar"] .stButton > button:focus,
+section[data-testid="stSidebar"] .stButton > button:active {
     box-shadow: none !important;
     outline: none !important;
+    color: #F5F0E8 !important;
 }
 
 /* ── Active nav item (injected as markdown) ── */
 .nav-active {
     background-color: #3E3B2A;
     color: #F5F0E8;
-    padding: 7px 12px 7px 16px;
+    padding: 6px 12px 6px 13px;
     border-radius: 7px;
-    font-size: 0.9rem;
+    font-size: 0.82rem;
     font-weight: 500;
     margin: 1px 0;
     cursor: default;
