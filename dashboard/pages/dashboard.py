@@ -1,4 +1,4 @@
-"""Dashboard overview page — KPIs, predstojeća prasenja, distribucija zdravlja, iskorišćenost tora."""
+"""Dashboard overview page — KPIs, upcoming farrowings, health distribution, pen utilisation."""
 
 import streamlit as st
 import pandas as pd
@@ -6,24 +6,24 @@ from dashboard import api_client as api
 
 
 _FILTERS = {
-    "Danas": 0,
-    "Sutra": 1,
-    "Narednih 7 dana": 7,
-    "Mesec dana": 30,
-    "3 meseca": 90,
+    "Today": 0,
+    "Tomorrow": 1,
+    "Next 7 Days": 7,
+    "Next Month": 30,
+    "Next 3 Months": 90,
 }
 
 
 def _status_label(days_left: int) -> str:
     if days_left < 0:
-        return f"⚠️ Kasni {abs(days_left)} d."
+        return f"⚠️ Overdue {abs(days_left)}d"
     if days_left == 0:
-        return "🔴 Danas!"
+        return "🔴 Today!"
     if days_left == 1:
-        return "🟠 Sutra"
+        return "🟠 Tomorrow"
     if days_left <= 7:
-        return f"🟡 Za {days_left} dana"
-    return f"🟢 Za {days_left} dana"
+        return f"🟡 In {days_left} days"
+    return f"🟢 In {days_left} days"
 
 
 def render():
@@ -32,23 +32,23 @@ def render():
     try:
         data = api.get_summary()
     except Exception as e:
-        st.error(f"Greška pri učitavanju: {e}")
+        st.error(f"Could not load dashboard: {e}")
         return
 
-    # ── KPI red ────────────────────────────────────────────
+    # ── KPI row ────────────────────────────────────────────
     k1, k2, k3, k4 = st.columns(4)
-    k1.metric("Aktivnih svinja", data["total_active_pigs"])
-    k2.metric("Bolesnih / Karantin", data["sick_or_quarantined"])
-    k3.metric("Ukupno prasenja", data["total_farrowings"])
-    k4.metric("Prosečno živih prasadi", data["avg_live_born"])
+    k1.metric("Active Pigs", data["total_active_pigs"])
+    k2.metric("Sick / Quarantined", data["sick_or_quarantined"])
+    k3.metric("Total Farrowings", data["total_farrowings"])
+    k4.metric("Avg Live Born", data["avg_live_born"])
 
     st.markdown("---")
 
-    # ── Predstojeća prasenja ───────────────────────────────
-    st.subheader("🐷 Predstojeća prasenja")
+    # ── Upcoming farrowings ────────────────────────────────
+    st.subheader("🐷 Upcoming Farrowings")
 
     selected = st.radio(
-        "Prikaži prasenja za:",
+        "Show farrowings for:",
         list(_FILTERS.keys()),
         index=2,
         horizontal=True,
@@ -67,48 +67,48 @@ def render():
         rows = []
         for u in upcoming:
             rows.append({
-                "Markica": u["ear_tag"],
-                "Tor": u["pen"],
-                "Osemenjeno": u["insemination_date"],
-                "Očekivano prasenje": u["expected_farrowing_date"],
+                "Ear Tag": u["ear_tag"],
+                "Pen": u["pen"],
+                "Insemination Date": u["insemination_date"],
+                "Expected Farrowing": u["expected_farrowing_date"],
                 "Status": _status_label(u["days_left"]),
             })
         df = pd.DataFrame(rows)
         st.dataframe(df, use_container_width=True, hide_index=True)
-        st.caption(f"Prikazano: {len(rows)} krmača")
+        st.caption(f"Showing {len(rows)} sow(s)")
     else:
-        st.info(f"Nema osemenjenih krmača za period: **{selected}**.")
+        st.info(f"No inseminated sows for: **{selected}**.")
 
     st.markdown("---")
 
-    # ── Distribucija zdravlja + iskorišćenost tora ─────────
+    # ── Health distribution + pen utilisation ──────────────
     col1, col2 = st.columns(2)
 
     with col1:
-        st.subheader("Distribucija zdravlja")
+        st.subheader("Health Distribution")
         hd = data.get("health_distribution", {})
         if hd:
-            df_hd = pd.DataFrame({"Status": hd.keys(), "Broj": hd.values()})
+            df_hd = pd.DataFrame({"Status": hd.keys(), "Count": hd.values()})
             st.bar_chart(df_hd.set_index("Status"))
         else:
-            st.info("Nema zdravstvenih zapisa.")
+            st.info("No health records yet.")
 
     with col2:
-        st.subheader("Iskorišćenost torova")
+        st.subheader("Pen Utilisation")
         pens = data.get("pen_utilisation", [])
         if pens:
             df_pen = pd.DataFrame(pens)
             st.dataframe(
                 df_pen[["name", "capacity", "current", "utilisation_pct"]].rename(
                     columns={
-                        "name": "Tor",
-                        "capacity": "Kapacitet",
-                        "current": "Trenutno",
-                        "utilisation_pct": "Popunjenost %",
+                        "name": "Pen",
+                        "capacity": "Capacity",
+                        "current": "Current",
+                        "utilisation_pct": "Util %",
                     }
                 ),
                 use_container_width=True,
                 hide_index=True,
             )
         else:
-            st.info("Nema torova.")
+            st.info("No pens found.")
