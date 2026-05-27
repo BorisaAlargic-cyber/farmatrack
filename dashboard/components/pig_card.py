@@ -6,6 +6,39 @@ from dashboard import api_client as api
 import streamlit as st
 
 
+# ── Predefined vaccines / medications ─────────────────────────────────────────
+VACCINES_AND_MEDS = [
+    "PRRS Vaccine",
+    "Mycoplasma (Enzootic Pneumonia) Vaccine",
+    "PCV2 (Circovirus) Vaccine",
+    "Erysipelas Vaccine",
+    "Parvovirus Vaccine",
+    "FMD (Foot-and-Mouth) Vaccine",
+    "Rotavirus Vaccine",
+    "E. coli Vaccine",
+    "Ivermectin (Dewormer)",
+    "Fenbendazole (Dewormer)",
+    "Amoxicillin",
+    "Enrofloxacin",
+    "Oxytetracycline",
+    "Ceftiofur",
+    "Penicillin",
+    "Iron Injection",
+    "Vitamin B Complex",
+    "Vitamin E / Selenium",
+    "Oxytocin",
+    "Other",
+]
+
+_STATUS_OPTIONS = ["healthy", "sick", "treated", "quarantined"]
+_STATUS_LABELS  = {
+    "healthy":     "✅ Healthy",
+    "sick":        "🤒 Sick",
+    "treated":     "💊 Treated",
+    "quarantined": "🔒 Quarantined",
+}
+
+
 def _fmt(d) -> str:
     if d is None:
         return "—"
@@ -25,7 +58,52 @@ def _parse_date(d):
     return d
 
 
-# ── Dialogs ────────────────────────────────────────────────────────────────
+# ── Dialogs ────────────────────────────────────────────────────────────────────
+
+@st.dialog("➕ Add Health Record")
+def _health_dialog(pig_id: int, ear_tag: str):
+    st.markdown(f"Pig: **{ear_tag}**")
+    st.divider()
+
+    record_date = st.date_input("Date", value=date.today(), max_value=date.today())
+
+    status = st.selectbox(
+        "Status *",
+        _STATUS_OPTIONS,
+        format_func=lambda x: _STATUS_LABELS[x],
+    )
+
+    treatment_sel = st.selectbox("Vaccine / Medication", ["— None —"] + VACCINES_AND_MEDS)
+    treatment = None
+    if treatment_sel == "Other":
+        treatment = st.text_input("Specify vaccine / medication")
+    elif treatment_sel != "— None —":
+        treatment = treatment_sel
+
+    diagnosis = st.text_input("Diagnosis / Notes (optional)")
+    vet_name  = st.text_input("Vet name (optional)")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        next_checkup = st.date_input("Next checkup (optional)", value=None)
+
+    st.divider()
+    if st.button("✅ Save", type="primary", use_container_width=True):
+        try:
+            api.create_health_record({
+                "pig_id":       pig_id,
+                "status":       status,
+                "diagnosis":    diagnosis or None,
+                "treatment":    treatment,
+                "vet_name":     vet_name or None,
+                "record_date":  record_date,
+                "next_checkup": next_checkup,
+            })
+            st.success("Health record saved!")
+            st.rerun()
+        except Exception as e:
+            st.error(str(e))
+
 
 @st.dialog("➕ Add Insemination")
 def _insemination_dialog(sow_id: int, ear_tag: str):
@@ -55,11 +133,11 @@ def _farrowing_dialog(farrowing_id: int, ear_tag: str, expected_date, farrowing_
     farrowing_date = st.date_input("Farrowing Date", value=date.today(), max_value=date.today())
     col1, col2, col3 = st.columns(3)
     with col1:
-        live_born = st.number_input("🟢 Live Born", min_value=0, value=0, step=1)
+        live_born  = st.number_input("🟢 Live Born",   min_value=0, value=0, step=1)
     with col2:
-        stillborn = st.number_input("💀 Stillborn", min_value=0, value=0, step=1)
+        stillborn  = st.number_input("💀 Stillborn",   min_value=0, value=0, step=1)
     with col3:
-        mummified = st.number_input("🔴 Mummified", min_value=0, value=0, step=1)
+        mummified  = st.number_input("🔴 Mummified",   min_value=0, value=0, step=1)
 
     total = live_born + stillborn + mummified
     if total > 0:
@@ -75,10 +153,72 @@ def _farrowing_dialog(farrowing_id: int, ear_tag: str, expected_date, farrowing_
             st.error(str(e))
 
 
-# ── Reproductive history section ───────────────────────────────────────────
+# ── Health section ─────────────────────────────────────────────────────────────
+
+def _health_section(pig: dict):
+    pig_id   = pig["id"]
+    ear_tag  = pig["ear_tag"]
+
+    try:
+        records = api.list_health_records(pig_id=pig_id)
+    except Exception:
+        records = []
+
+    col_title, col_btn = st.columns([3, 1])
+    with col_title:
+        st.markdown(f"#### 🏥 Health Records &nbsp;&nbsp; `{len(records)} record(s)`")
+    with col_btn:
+        if st.button("➕ Add Record", key=f"health_btn_{pig_id}", use_container_width=True, type="primary"):
+            _health_dialog(pig_id, ear_tag)
+
+    if not records:
+        st.caption("No health records yet.")
+        return
+
+    for r in records:
+        status = r.get("status", "healthy")
+        status_label = _STATUS_LABELS.get(status, status.title())
+        record_date  = _fmt(r.get("record_date"))
+        treatment    = r.get("treatment") or "—"
+        diagnosis    = r.get("diagnosis") or ""
+        vet          = r.get("vet_name") or ""
+        next_chk     = r.get("next_checkup")
+
+        with st.container(border=True):
+            c1, c2 = st.columns([3, 1])
+            with c1:
+                st.markdown(f"**{record_date}** — {status_label}")
+            with c2:
+                if status == "sick":
+                    st.error(status_label, icon="🤒")
+                elif status == "quarantined":
+                    st.error(status_label, icon="🔒")
+                elif status == "treated":
+                    st.warning(status_label, icon="💊")
+                else:
+                    st.success(status_label, icon="✅")
+
+            info_col, treat_col = st.columns(2)
+            with info_col:
+                if diagnosis:
+                    st.caption("Diagnosis")
+                    st.write(diagnosis)
+                if vet:
+                    st.caption("Vet")
+                    st.write(vet)
+            with treat_col:
+                if treatment != "—":
+                    st.caption("Vaccine / Medication")
+                    st.write(treatment)
+                if next_chk:
+                    st.caption("Next checkup")
+                    st.write(_fmt(next_chk))
+
+
+# ── Reproductive section ───────────────────────────────────────────────────────
 
 def _reproductive_section(pig: dict):
-    sow_id = pig["id"]
+    sow_id  = pig["id"]
     ear_tag = pig["ear_tag"]
 
     try:
@@ -88,7 +228,6 @@ def _reproductive_section(pig: dict):
 
     completed = [f for f in farrowings if f.get("farrowing_date")]
 
-    st.divider()
     col_title, col_btn = st.columns([3, 1])
     with col_title:
         st.markdown(f"#### 📅 Reproductive History &nbsp;&nbsp; `{len(completed)} farrowing(s)`")
@@ -101,21 +240,18 @@ def _reproductive_section(pig: dict):
         return
 
     for f in farrowings:
-        num = f.get("farrowing_number", "?")
-        ins_date = _parse_date(f.get("insemination_date"))
-        exp_date = _parse_date(f.get("expected_farrowing_date"))
+        num       = f.get("farrowing_number", "?")
+        ins_date  = _parse_date(f.get("insemination_date"))
+        exp_date  = _parse_date(f.get("expected_farrowing_date"))
         farr_date = _parse_date(f.get("farrowing_date"))
-        live = f.get("live_born")
+        live      = f.get("live_born")
         stillborn = f.get("stillborn", 0)
-        mumif = f.get("mummified", 0)
-        total = f.get("total_born", 0)
+        mumif     = f.get("mummified", 0)
+        total     = f.get("total_born", 0)
 
         with st.container(border=True):
             if farr_date:
-                header_col, _ = st.columns([4, 1])
-                with header_col:
-                    st.markdown(f"**Farrowing #{num}** — ✅ Completed")
-
+                st.markdown(f"**Farrowing #{num}** — ✅ Completed")
                 info_col, live_col, dead_col, mum_col = st.columns(4)
                 with info_col:
                     if ins_date:
@@ -129,12 +265,10 @@ def _reproductive_section(pig: dict):
                     st.metric("💀 Stillborn", stillborn)
                 with mum_col:
                     st.metric("🔴 Mummified", mumif)
-
                 if total > 0:
                     st.caption(f"Total born: **{total}**")
                 if f.get("weaned_count") is not None:
                     st.caption(f"Weaned: **{f['weaned_count']}**")
-
             else:
                 header_col, btn_col = st.columns([3, 1])
                 with header_col:
@@ -162,7 +296,7 @@ def _reproductive_section(pig: dict):
                         st.write("—")
 
 
-# ── Main pig card ──────────────────────────────────────────────────────────
+# ── Main pig card ──────────────────────────────────────────────────────────────
 
 def pig_card(pig: dict, compact: bool = False):
     if compact:
@@ -191,5 +325,14 @@ def pig_card(pig: dict, compact: bool = False):
         if pig.get("notes"):
             st.info(pig["notes"])
 
-        if pig.get("category") in ("sow", "gilt"):
-            _reproductive_section(pig)
+        is_sow = pig.get("category") in ("sow", "gilt")
+
+        if is_sow:
+            tab_health, tab_repro = st.tabs(["🏥 Health Records", "📅 Reproductive History"])
+            with tab_health:
+                _health_section(pig)
+            with tab_repro:
+                _reproductive_section(pig)
+        else:
+            st.divider()
+            _health_section(pig)
